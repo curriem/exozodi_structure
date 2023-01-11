@@ -5,27 +5,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
+# =============================================================================
+# TODO:
+#    1) vary high-pass filter size and aperture size -- this requires re-calculating 
+#       the matched filter. Need to save different instances of matched filter 
+#    2) choose a noise region that best reproduces the expected value--
+#       get as close to the planet as possible. perhaps annulus around planet
+#       test with 1/r^2 model 
+#    3) apply these new methods to real disks. make plots
+#    4) plot: measured/expected noise of hipass image vs. zodi level
+#    5) plot: filter size vs. aperture size. colors for SNRs. different lines
+#       for different zodis
+#    6) plot: cc SNR achieved vs. zodi level
+#    7) apply these methods to LUVOIR-B coronagraph data
+#    8) start writing up paper
+#    9) figure out how many iterations are sufficient to get to right answer
+#       (median changes by less than 1%?) SEE Delta ccSNR vs niter plot below
+#       NEEDS WORK
+#   10) Note: LUV-B matched filters look weird-- shift is off? 
+#           --- it's not the order in the shift function. already tested.
+#           --- the LUVB planet PSF that comes out of Jens' code is ugly, not perfect
+#           --- like LUVA! Is this expected? Need to email Jens about this.
+#           --- In any case, I think I got to the bottom of it.
+# =============================================================================
+
 # define some parameters
 tele = "LUVA" # telescope
 
 
-zodis = "100" # zodi level you want to work with
-incl = "90"
+zodis = "10" # zodi level you want to work with
+incl = "00"
 longitude = "00"
+pix_radius = 1
+roll_angle = 30.
 
 zodis_arr = ["1", "5", "10", "20", "50", "100"]
 incl_arr = ["00", "30", "60", "90"]
 
+matched_filter_dir = "/Users/mcurr/PROJECTS/exozodi_structure/matched_filter_library/"
+
+matched_filter_fl = matched_filter_dir + "matched_filter_datacube_{}_rang{}_aprad{}.npy".format(tele, round(roll_angle), pix_radius)
+matched_filter_datacube = np.load(matched_filter_fl)
+
+matched_filter_single_fl = matched_filter_dir + "matched_filter_single_datacube_{}_rang{}_aprad{}.npy".format(tele, round(roll_angle), pix_radius)
+matched_filter_single_datacube = np.load(matched_filter_single_fl)
+
+
+
 if tele == "LUVA":
     planet_pos_lamD = 10.5
     planet_pos_mas = 100.26761414789404
-    roll_angle = 38.94244126898137
-    matched_filter_datacube = np.load("/Users/mcurr/PACKAGES/coroSims//matched_filter_LUVA_datacube.npy")
-    matched_filter_single_datacube = np.load("/Users/mcurr/PACKAGES/coroSims//matched_filter_LUVA_single_datacube.npy")
+    
 if tele == "LUVB":
     planet_pos_lamD = 7.757018897752577 # lam/D
     planet_pos_mas = 100.
-    roll_angle = 49.53983264223517
     matched_filter_datacube = np.load("/Users/mcurr/PACKAGES/coroSims//matched_filter_LUVB_datacube.npy")
     matched_filter_single_datacube = np.load("Users/mcurr/PACKAGES/coroSims//matched_filter_LUVA_single_datacube.npy")
 
@@ -50,7 +84,7 @@ sci_y = 0
 sci_signal_i = round(central_pixel)
 sci_signal_j = round(central_pixel + loc_of_planet_pix)
 
-pix_radius = 1
+
 aperture = ezf.get_psf_stamp(np.copy(sci_im), sci_signal_i, sci_signal_j, pix_radius) > 0
 
 
@@ -65,9 +99,9 @@ ref_signal_j = round(ref_y + central_pixel)
 
 
 ###############################################################################
-add_noise = True
-add_star = True
-planet_noise = True
+add_noise = False
+add_star = False
+planet_noise = False
 uniform_disk = False
 r2_disk = False
 plot = False
@@ -80,7 +114,7 @@ r2_correct = True
 #### r2_correct = True for everything except uniform disk
 
 
-num_iter = 100
+num_iter = 200
 
 sub_SNRs = []
 sub_SNRs_hipass = []
@@ -96,16 +130,23 @@ sub_hipass_ims = []
 cc_sci_maps = []
 cc_maps = []
 
+cc_median_vals = []
+
+optimal_filtersize_unknown = True
+
 for n in range(num_iter):
     print(n)
-    sci_im, ref_im, planet_signal = ezf.synthesize_images(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(zodis), aperture,
+    sci_im, ref_im, sci_planet_counts, ref_planet_counts = ezf.synthesize_images(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(zodis), aperture,
                                        target_SNR=7, pix_radius=pix_radius,
-                                       verbose=verbose, 
+                                       verbose=False, 
                                        add_noise=add_noise, 
                                        add_star=add_star, 
                                        planet_noise=planet_noise, 
                                        uniform_disk=uniform_disk,
                                        r2_disk=r2_disk)
+    
+    total_planet_counts = sci_planet_counts + ref_planet_counts
+    
     # calculate maps
     rotation_map, valid_mask, radius_map = ezf.construct_maps(sci_im, imsc, diam, IWA_lamD=7.5, plotting=False)
 
@@ -118,13 +159,18 @@ for n in range(num_iter):
     
     noise_region_radius = 10
 
-    sci_SNR = ezf.calculate_SNR(sci_im, sci_signal_i, sci_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=r2_correct)#, force_signal=72.3965585413765)
-    ref_SNR = ezf.calculate_SNR(ref_im, ref_signal_i, ref_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=r2_correct)#, force_signal=66.99572433110286)
-    
     if ~planet_noise:
-        force_signal = planet_signal # for just planet + uniform disk
+        force_signal = None #total_planet_counts # for just planet + uniform disk
+        sci_force_signal = None #sci_planet_counts
+        ref_force_signal = None #ref_planet_counts
     else:
         force_signal = None
+        sci_force_signal = None
+        ref_force_signal = None
+        
+    sci_SNR = ezf.calculate_SNR(sci_im, sci_signal_i, sci_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=r2_correct, force_signal=sci_force_signal)
+    ref_SNR = ezf.calculate_SNR(ref_im, ref_signal_i, ref_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=r2_correct, force_signal=ref_force_signal)
+    
     
     sub_im = sci_im - ref_im
     
@@ -132,18 +178,23 @@ for n in range(num_iter):
     
     
     ## CALCULATE OPTIMAL HIPASS FILTER SIZE
-    SNRs_filtersize = []
-    filtersizes = np.arange(1, 20, 1)
-    for filtersize in filtersizes:
-        #print("Trying filtersize={}".format(filtersize))
-        cc_map_test = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask, hipass=True, filtersize=filtersize)
-    
-        cc_SNR_test = ezf.cc_SNR_known_loc(cc_map_test, sci_signal_i, sci_signal_j, pix_radius, roll_angle, aperture, central_pixel, noise_region_radius, r2_correct=r2_correct, mask_antisignal=True)
-
-        SNRs_filtersize.append(cc_SNR_test)
+    ## remove known/unknown stuff... just using it to speed up code for now
+    if optimal_filtersize_unknown:
+        SNRs_filtersize = []
+        filtersizes = np.arange(1, 20, 1)
+        for filtersize in filtersizes:
+            #print("Trying filtersize={}".format(filtersize))
+            cc_map_test = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask, hipass=True, filtersize=filtersize)
         
-    max_ind = np.argmax(SNRs_filtersize)
-    optimal_filtersize = filtersizes[max_ind]
+            cc_SNR_test = ezf.cc_SNR_known_loc(cc_map_test, sci_signal_i, sci_signal_j, pix_radius, roll_angle, aperture, central_pixel, noise_region_radius, r2_correct=r2_correct, mask_antisignal=True)
+    
+            SNRs_filtersize.append(cc_SNR_test)
+            
+        max_ind = np.argmax(SNRs_filtersize)
+        optimal_filtersize = filtersizes[max_ind]
+        optimal_filtersize_unknown = False
+        
+
     
     if plot:
         # plot optimal filtersize
@@ -189,87 +240,120 @@ for n in range(num_iter):
     cc_maps.append(cc_map)
     
     
+    cc_median_vals.append(np.median(cc_SNRs))
+    
     if plot:
         fig, axes = plt.subplots(2, 3, figsize=(14, 7))
         
         sci_im_plot = axes[0, 0].imshow(np.log10(sci_im), origin='lower')
         axes[0, 0].set_title("Science Image")
         plt.colorbar(sci_im_plot, ax=axes[0,0])
-        axes[0, 0].text(2, 95, "SNR={}".format(round(sci_SNR, 2)))
+        # axes[0, 0].text(2, 95, "SNR={}".format(round(sci_SNR, 2)))
         
         
         ref_im_plot = axes[1, 0].imshow(np.log10(ref_im), origin='lower')
         axes[1, 0].set_title("Reference Image")
         plt.colorbar(ref_im_plot, ax=axes[1,0])
-        axes[1, 0].text(2, 95, "SNR={}".format(round(ref_SNR, 2)))
+        # axes[1, 0].text(2, 95, "SNR={}".format(round(ref_SNR, 2)))
 
         
         sub_im_plot = axes[0, 1].imshow(sub_im, origin='lower')
         axes[0, 1].set_title("Roll Subtracted Image")
         plt.colorbar(sub_im_plot, ax=axes[0, 1])
-        axes[0, 1].text(2, 95, "SNR={}".format(round(sub_SNR, 2)))
+        # axes[0, 1].text(2, 95, "SNR={}".format(round(sub_SNR, 2)))
 
         
         sub_im_hipass_plot = axes[1, 1].imshow(sub_im_hipass, origin='lower')
         axes[1, 1].set_title("Hipass Roll Sub Image")
         plt.colorbar(sub_im_hipass_plot, ax=axes[1,1])
-        axes[1, 1].text(2, 95, "SNR={}".format(round(sub_SNR_hipass, 2)))
+        # axes[1, 1].text(2, 95, "SNR={}".format(round(sub_SNR_hipass, 2)))
         
         cc_map_plot = axes[1, 2].imshow(cc_map, origin='lower')
         axes[1, 2].set_title("Cross-correlation Map")
         plt.colorbar(cc_map_plot, ax=axes[1,2])
-        axes[1, 2].text(2, 95, "SNR={}".format(round(cc_SNR, 2)))
+        # axes[1, 2].text(2, 95, "SNR={}".format(round(cc_SNR, 2)))
         
         cc_map_sci_plot = axes[0, 2].imshow(cc_map_sci, origin='lower')
         axes[0, 2].set_title("Cross-correlation Sci Im Map")
         plt.colorbar(cc_map_plot, ax=axes[0,2])
-        axes[0, 2].text(2, 95, "SNR={}".format(round(cc_SNR_sci, 2)))
+        # axes[0, 2].text(2, 95, "SNR={}".format(round(cc_SNR_sci, 2)))
 
         plt.show()
         
+
+def get_closest_ind_to_median(arr):
     
+    median_val = np.median(arr)
+    difference_array = np.absolute(arr-median_val)
+    closest_ind = difference_array.argmin()
+    
+    return closest_ind
 
 if plot_median:
-    median_cc_SNR = np.median(cc_SNRs)
-    difference_array = np.absolute(cc_SNRs-median_cc_SNR)
-    
-    closest_ind = difference_array.argmin()
+
 
 
     fig, axes = plt.subplots(2, 3, figsize=(14, 7))
     
-    sci_im_plot = axes[0, 0].imshow(np.log10(sci_ims[closest_ind]), origin='lower')
+    sci_SNR_closest_ind = get_closest_ind_to_median(sci_SNRs)
+    
+    sci_im_plot = axes[0, 0].imshow(np.log10(sci_ims[sci_SNR_closest_ind]), origin='lower')
+    #sci_im_plot = axes[0, 0].imshow(sci_ims[sci_SNR_closest_ind], origin='lower')
+
     axes[0, 0].set_title("Science Image")
     plt.colorbar(sci_im_plot, ax=axes[0,0])
-    axes[0, 0].text(2, 95, "SNR={}".format(round(sci_SNRs[closest_ind], 2)))
+    #axes[0, 0].text(2, 95, "SNR={}".format(round(np.median(sci_SNRs), 2)))
     
     
-    ref_im_plot = axes[1, 0].imshow(np.log10(ref_ims[closest_ind]), origin='lower')
+    
+    ref_SNR_closest_ind = get_closest_ind_to_median(ref_SNRs)
+
+    #ref_im_plot = axes[1, 0].imshow(ref_ims[ref_SNR_closest_ind], origin='lower')
+    ref_im_plot = axes[1, 0].imshow(np.log10(ref_ims[ref_SNR_closest_ind]), origin='lower')
     axes[1, 0].set_title("Reference Image")
     plt.colorbar(ref_im_plot, ax=axes[1,0])
-    axes[1, 0].text(2, 95, "SNR={}".format(round(ref_SNRs[closest_ind], 2)))
+    #axes[1, 0].text(2, 95, "SNR={}".format(round(np.median(ref_SNRs), 2)))
 
+
+
+    sub_SNR_closest_ind = get_closest_ind_to_median(sub_SNRs)
     
-    sub_im_plot = axes[0, 1].imshow(sub_ims[closest_ind], origin='lower')
+    #sub_im_plot = axes[0, 1].imshow(np.log10(sub_ims[sub_SNR_closest_ind]), origin='lower')
+    sub_im_plot = axes[0, 1].imshow(sub_ims[sub_SNR_closest_ind], origin='lower')
     axes[0, 1].set_title("Roll Subtracted Image")
     plt.colorbar(sub_im_plot, ax=axes[0, 1])
-    axes[0, 1].text(2, 95, "SNR={}".format(round(sub_SNRs[closest_ind], 2)))
+    #axes[0, 1].text(2, 95, "SNR={}".format(round(np.median(sub_SNRs), 2)))
 
     
-    sub_im_hipass_plot = axes[1, 1].imshow(sub_hipass_ims[closest_ind], origin='lower')
+
+    sub_hipass_SNR_closest_ind = get_closest_ind_to_median(sub_SNRs_hipass)
+
+    #sub_im_hipass_plot = axes[1, 1].imshow(np.log10(sub_hipass_ims[sub_hipass_SNR_closest_ind]), origin='lower')
+    sub_im_hipass_plot = axes[1, 1].imshow(sub_hipass_ims[sub_hipass_SNR_closest_ind], origin='lower')
     axes[1, 1].set_title("Hipass Roll Sub Image")
     plt.colorbar(sub_im_hipass_plot, ax=axes[1,1])
-    axes[1, 1].text(2, 95, "SNR={}".format(round(sub_SNRs_hipass[closest_ind], 2)))
+   # axes[1, 1].text(2, 95, "SNR={}".format(round(np.median(sub_SNRs_hipass), 2)))
     
-    cc_map_plot = axes[1, 2].imshow(cc_maps[closest_ind], origin='lower')
+    
+    
+    cc_SNR_closest_ind = get_closest_ind_to_median(cc_SNRs)
+    
+    #cc_map_plot = axes[1, 2].imshow(np.log10(cc_maps[cc_SNR_closest_ind]), origin='lower')
+    cc_map_plot = axes[1, 2].imshow(cc_maps[cc_SNR_closest_ind], origin='lower')
+
     axes[1, 2].set_title("Cross-correlation Map")
     plt.colorbar(cc_map_plot, ax=axes[1,2])
-    axes[1, 2].text(2, 95, "SNR={}".format(round(cc_SNRs[closest_ind], 2)))
+    #axes[1, 2].text(2, 95, "SNR={}".format(round(np.median(cc_SNRs), 2)))
     
-    cc_map_sci_plot = axes[0, 2].imshow(cc_sci_maps[closest_ind], origin='lower')
+    
+    cc_sci_SNR_closest_ind = get_closest_ind_to_median(cc_sci_maps)
+    
+    #cc_map_sci_plot = axes[0, 2].imshow(np.log10(cc_sci_maps[cc_sci_SNR_closest_ind]), origin='lower')
+    cc_map_sci_plot = axes[0, 2].imshow(cc_sci_maps[cc_sci_SNR_closest_ind], origin='lower')
+
     axes[0, 2].set_title("Cross-correlation Sci Im Map")
     plt.colorbar(cc_map_plot, ax=axes[0,2])
-    axes[0, 2].text(2, 95, "SNR={}".format(round(cc_sci_SNRs[closest_ind], 2)))
+    axes[0, 2].text(2, 95, "SNR={}".format(round(np.median(cc_sci_SNRs), 2)))
 
     plot_fl = "../plots/images_"
     if not r2_disk and not uniform_disk:
@@ -303,6 +387,13 @@ if plot_median:
     print("Saving as {}".format(plot_fl))
     plt.savefig(plot_fl)
     plt.show()
+    
+    
+    plt.figure()
+    plt.plot(np.arange(1, num_iter+1)[:-1], np.diff(cc_median_vals))
+    plt.ylabel("\Delta cc SNR median")
+    plt.xlabel("N iterations")
+    plt.show()
 
 
 # print("\n\nmedian sci ref SNR", np.median(sci_ref_SNR))
@@ -311,7 +402,7 @@ print("median sub SNR after hipass", np.median(sub_SNRs_hipass))
 print("median CC SNR", np.median(cc_SNRs))
 
 print("median sci SNR", np.median(sci_SNRs))
-# print("median ref SNR", np.median(ref_SNR))
+print("median ref SNR", np.median(ref_SNRs))
 
 
 

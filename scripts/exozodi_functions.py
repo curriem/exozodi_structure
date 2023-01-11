@@ -262,9 +262,6 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
         sci_disk_im = r2_disk
         ref_disk_im = r2_disk
         
-#         plot_im(r2_disk, 50, 50, log=True)
-#         assert False
-        
     
     sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
     sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
@@ -276,22 +273,35 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     ref_back_CR = ref_disk_CR + ref_star_CR # ph/s
 
     
-    tot_noise_CR = 2.*sci_back_CR # ph/s
-    sci_noise_CR = sci_back_CR
-    ref_noise_CR = ref_back_CR
+    # tot_noise_CR = 2.*sci_back_CR # ph/s
+    tot_noise_CR = sci_back_CR + ref_back_CR # ph/s
+# =============================================================================
+#     sci_noise_CR = sci_back_CR
+#     ref_noise_CR = ref_back_CR
+# =============================================================================
 #     noise_CR = 1.*back_CR # ph/s
     if planet_noise:
         tot_noise_CR += sci_plan_CR
-        sci_noise_CR += sci_plan_CR
-        ref_noise_CR += ref_plan_CR
+# =============================================================================
+#         sci_noise_CR += sci_plan_CR
+#         ref_noise_CR += ref_plan_CR
+# =============================================================================
         
     tot_tint = target_SNR**2 * tot_noise_CR/sci_plan_CR**2 # s
     
-    SNR_per_image = target_SNR / np.sqrt(2)
+# =============================================================================
+#     SNR_per_image = target_SNR / np.sqrt(2)
+# =============================================================================
     
-    sci_tint = SNR_per_image**2 * sci_noise_CR/sci_plan_CR**2 # s
-    ref_tint = SNR_per_image**2 * ref_noise_CR/ref_plan_CR**2 # s
+# =============================================================================
+#     sci_tint = SNR_per_image**2 * sci_noise_CR/sci_plan_CR**2 # s
+#     ref_tint = SNR_per_image**2 * ref_noise_CR/ref_plan_CR**2 # s
+# =============================================================================
 
+    sci_tint = tot_tint/2
+    ref_tint = tot_tint/2
+    #print(tot_tint, sci_tint, ref_tint)
+    #assert False
     
 #     tint /= 2
     
@@ -306,7 +316,7 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
         print("Ref Star counts:", ref_star_CR*ref_tint)
         print("Ref Integration time:", ref_tint)
         
-    total_planet_counts = sci_plan_CR*sci_tint + ref_plan_CR*ref_tint
+    sci_planet_counts, ref_planet_counts = sci_plan_CR*sci_tint, ref_plan_CR*ref_tint
 
     science_image = (sci_plan_im + sci_disk_im + sci_star_im) * sci_tint
     reference_image = (ref_plan_im + ref_disk_im + ref_star_im) * ref_tint
@@ -328,10 +338,10 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     
 #     plot_im(science_image, 50, 50)
 #     plt.title("This one is the bad one")
-    return science_image, reference_image, total_planet_counts
+    return science_image, reference_image, sci_planet_counts, ref_planet_counts
 
 
-def calculate_SNR(im, signal_i, signal_j, valid_map, aperture, region_radius, r2_correct=True, force_signal=None):
+def calculate_SNR(im, signal_i, signal_j, valid_map, aperture, region_radius, r2_correct=False, force_signal=None):
     
     imsz, imsz = im.shape
     apsz, apsz = aperture.shape
@@ -355,21 +365,14 @@ def calculate_SNR(im, signal_i, signal_j, valid_map, aperture, region_radius, r2
     if r2_correct:
         noise_region = r2_correction(noise_region, signal_i, signal_j)
     noise_region_median = np.nanmedian(noise_region)
-#     print("noise_region_median", noise_region_median)
+    
     noise_region_bkgr_rm = noise_region - noise_region_median
     
     noise = calc_noise_in_region(noise_region_bkgr_rm, aperture, ap_rad)
     
     im_bkgr_sub = im - noise_region_median
-#     plot_im(im_bkgr_sub, signal_i, signal_j)
-    signal = np.sum(im_bkgr_sub[signal_mask])
-#     print("noise", noise)
-#     print("signal", signal)
-#     print("SNR",signal/noise)
     
-#     plot_im(noise_region_bkgr_rm, 50, 50)
-#     plt.title("Noise region")
-
+    signal = np.sum(im_bkgr_sub[signal_mask])
     
     SNR = signal / noise
     
@@ -457,8 +460,9 @@ def calculate_SNR_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_sign
     if r2_correct:
         sub_noise_region_bkgr_rm = r2_correction(sub_noise_region_bkgr_rm, sci_signal_i, sci_signal_j)
     
-    noise = calc_noise_in_region(sub_noise_region_bkgr_rm, aperture, ap_rad)
-    
+    # noise = calc_noise_in_region(sub_noise_region_bkgr_rm, aperture, ap_rad)
+    noise_two_aps = calc_noise_in_region_two_apertures(sub_noise_region_bkgr_rm, aperture, ap_rad)
+    noise = noise_two_aps
     
     sub_im_bkgr_sub = sub_im - sub_noise_region_median
 #     plot_im(im_bkgr_sub, signal_i, signal_j)
@@ -487,11 +491,41 @@ def calc_noise_in_region(im, aperture, ap_rad):
     imsz, imsz = im.shape
     
     background_vals = []
-    for i in range(imsz):
-        for j in range(imsz):
-            if ~np.isnan(im[i,j]):
-                background_aperture = im[i-ap_rad:i+ap_rad+1, j-ap_rad:j+ap_rad+1] * aperture
-                background_aperture_sum = np.sum(background_aperture)
+    
+    non_nan_inds = np.where(~np.isnan(im))
+    i_arr, j_arr = non_nan_inds
+    for n in range(len(i_arr)):
+        i = i_arr[n]
+        j = j_arr[n]
+        background_aperture = im[i-ap_rad:i+ap_rad+1, j-ap_rad:j+ap_rad+1] * aperture
+        background_aperture_sum = np.sum(background_aperture)
+        background_vals.append(background_aperture_sum)
+    
+    region_std = np.nanstd(background_vals)
+    
+    return region_std
+
+def calc_noise_in_region_two_apertures(im, aperture, ap_rad):
+    # im should have non-noise regions masked off
+    imsz, imsz = im.shape
+    
+    background_vals = []
+    non_nan_inds = np.where(~np.isnan(im))
+    i_arr, j_arr = non_nan_inds
+
+    for n in range(len(i_arr)):
+        for m in range(len(i_arr)):
+            i1 = i_arr[n]
+            j1 = j_arr[n]
+            i2 = i_arr[m]
+            j2 = j_arr[m]
+            
+            if (i1 == i2) and (j1 == j2):
+                background_vals.append(np.nan)
+            else:
+                background_aperture1 = im[i1-ap_rad:i1+ap_rad+1, j1-ap_rad:j1+ap_rad+1] * aperture
+                background_aperture2 = -1 * im[i2-ap_rad:i2+ap_rad+1, j2-ap_rad:j2+ap_rad+1] * aperture
+                background_aperture_sum = np.sum(background_aperture1 + background_aperture2)
                 background_vals.append(background_aperture_sum)
     
     region_std = np.nanstd(background_vals)
@@ -611,3 +645,44 @@ def calculate_valid_cc_mask(cc_map, signal_i, signal_j, roll_angle, aperture, ce
     
 
     return valid_mask
+
+
+def downbin_psf(psf, imsc, imsz, wave, diam, tele):
+    
+    if tele == "LUVA":
+        shift_order = 1
+    elif tele == "LUVB":
+        shift_order = 0
+    
+    rad2mas = 180./np.pi*3600.*1000.
+
+    imsc2 = 0.5*0.5e-6/(0.9*diam)*rad2mas # mas
+    
+    # Compute wavelength-dependent zoom factor.
+    fact = 0.25*wave * 1e-6 /diam*rad2mas/imsc2
+
+    norm = np.sum(psf)
+
+    # Scale image to imsc.
+    temp = np.exp(zoom(np.log(psf), fact, mode='nearest', order=5)) # interpolate in log-space to avoid negative values
+    
+    temp *= norm/np.sum(temp) # ph/s
+    
+    # Center image so that (imsz-1)/2 is center.
+    if (((temp.shape[0] % 2 == 0) and (imsz % 2 != 0)) or ((temp.shape[0] % 2 != 0) and (imsz % 2 == 0))):
+        temp = np.pad(temp, ((0, 1), (0, 1)), mode='edge')
+        temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=shift_order)) # interpolate in log-space to avoid negative values
+        temp = temp[1:-1, 1:-1]
+        
+    # Crop image to imsz.
+    if (temp.shape[0] > imsz):
+        nn = (temp.shape[0]-imsz)//2
+        temp = temp[nn:-nn, nn:-nn]
+    else:
+        nn = (imsz-temp.shape[0])//2
+        temp = np.pad(temp, ((nn, nn), (nn, nn)), mode='edge')
+        
+    return temp
+
+
+
