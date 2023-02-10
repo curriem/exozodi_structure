@@ -77,8 +77,8 @@ uniform_disk = False
 r2_disk = False
 
 
-matched_filter_dir = "/Users/mcurr/PROJECTS/exozodi_structure/matched_filter_library/"
-im_dir_path = "/Users/mcurr/PROJECTS/exozodi_structure/data/LUVOIR-A_outputs/"
+matched_filter_dir = "../matched_filter_library/"
+im_dir_path = "../data/LUVOIR-A_outputs/"
 
 
 
@@ -97,6 +97,8 @@ ap_sz_arr = np.arange(1, 6, 1)
 filter_sz_arr = np.arange(1, 21, 4)
 filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
+ap_sz_arr = [1]
+filter_sz_arr = [10]
 incl_arr = ["00", "30", "60", "90"]
 zodi_arr = ["1", "5", "10", "20", "50", "100"]
 longitude = "00"
@@ -296,7 +298,7 @@ def process(config):
     median_measured_noise_before_hipass_out = np.median(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.median(measured_noise_after_hipass_out_arr)
     
-    return_arr = np.array([disk_type, ap_sz, filter_sz, int(incl), int(zodis), median_cc_SNR, median_cc_SNR_before_hipass, iterations,
+    return_arr = np.array([uniform_disk, ap_sz, filter_sz, int(incl), int(zodis), median_cc_SNR, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out])
     
@@ -328,9 +330,9 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=8)(delayed(process)(config) for config in configs)
+    results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
-    header = "disk_type ap_sz filter_sz incl zodis median_cc_SNR median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out"
+    header = "uniform_disk ap_sz filter_sz incl zodis median_cc_SNR median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out"
     np.savetxt("data.dat", results, header=header, comments='')
 
 
