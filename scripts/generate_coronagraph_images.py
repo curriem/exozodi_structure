@@ -309,7 +309,7 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
         diam = 12. # m
         iwa = 8.5 # lambda/D, for LUV-A
         owa = 26. # lambda/D, for LUV-A
-        output_fl = "LUVOIR-A_outputs/"
+        output_fl = "../data/LUVOIR-A_outputs/"
         if nofwdscat:
             output_fl = "nofwdscat_outputs/"
         cdir = '/Users/mcurr/PACKAGES/coroSims/LUVOIR-A_APLC_18bw_medFPM_2021-05-07_Dyn10pm-nostaticabb/'
@@ -319,7 +319,7 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
         diam = 8.
         iwa = 2.5 # lambda/D, for LUV-B
         owa = 13. # lambda/D, for LUV-B
-        output_fl = "LUVOIR-B_outputs/"
+        output_fl = "../data/LUVOIR-B_outputs/"
         cdir = '/Users/mcurr/PACKAGES/coroSims/LUVOIR-B-VC6_timeseries/'
 
     
@@ -426,17 +426,17 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     #planet_pos_mas_forced = lamD_to_mas(planet_pos_lamD_forced, wave[0]*u.um, diam*u.m)
     #print("mas", planet_pos_mas_actual, planet_pos_mas_forced)
     print("planet_pos_mas_forced", planet_pos_mas_forced)
+    print("imsc final", imsc_final)
     x_plan_forced = np.sqrt((planet_pos_mas_forced/new_pixelscale.value)**2 - (y_plan-y_star)**2) + x_star
     xyplanet = np.array([[[x_plan_forced, y_plan]]])
+    print(xyplanet)
     
     
-   
+
     
     
     coro.scene = scene(time, Ntime, pixscale, xystar, fstar, Nplanets, xyplanet, fplanet, disk, wave, Nwave, angdiam)
-
-    name = tag
-    coro.name = name
+    
     coro.angdiam = angdiam
     coro.diam = diam
     coro.dist = dist
@@ -469,9 +469,13 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     phi_roll = calculate_roll_angle(planet_pos_lamD.value, coro)
     print("Roll angle:", phi_roll)
     print("Planet position (lam/D)", planet_pos_lamD)
-    phi_roll = 30. * u.deg
+    #phi_roll = 30. * u.deg
     coro.phi_roll = phi_roll
     coro.planet_pos_lamD = planet_pos_lamD
+    
+    tag += "-rang_{}".format(round(phi_roll.value)) 
+    coro.name = tag
+    
     
     # make the science and reference coronagraph images
     sci = coro.sim_sci(add_star=True,
@@ -490,35 +494,39 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     det = detector.det(iwa=iwa,
                        owa=owa)
 
-    det.nlimgs(name,
+    det.nlimgs(tag,
                odir,
                tags=['sci_imgs', 'sci_star', 'sci_plan', 'sci_disk', 'ref_imgs', 'ref_star', 'ref_plan', 'ref_disk'],
                #tags = ["sci_plan"],
                overwrite=overwrite)
 
-    tint, cr_star, cr_plan, cr_disk, cr_detn = det.tint(name,
-                                                        odir,
-                                                        tag='sci_imgs',
-                                                        papt=papt, # pix
-                                                        rapt=rapt, # lambda/D
-                                                        time_comp=time[0], # yr
-                                                        wave_comp=wave[0], # micron
-                                                        snr_targ=7.,
-                                                        path_star=odir+name+'/DET/sci_star.fits',
-                                                        path_plan=odir+name+'/DET/sci_plan.fits',
-                                                        path_disk=odir+name+'/DET/sci_disk.fits',
-                                                        detn=False,
-                                                        fdir=fdir)
-
-    # add photon noise
-    det.pnimgs(name,
-               odir,
-               tags=['sci_imgs', 'ref_imgs'],
-               tint=tint, # s
-               time_comp=time[0], # yr
-               wave_comp=wave[0], # micron
-               Nobs=Nobs,
-               overwrite=overwrite)
+# =============================================================================
+#     tint, cr_star, cr_plan, cr_disk, cr_detn = det.tint(tag,
+#                                                         odir,
+#                                                         tag='sci_imgs',
+#                                                         papt=papt, # pix
+#                                                         rapt=rapt, # lambda/D
+#                                                         time_comp=time[0], # yr
+#                                                         wave_comp=wave[0], # micron
+#                                                         snr_targ=7.,
+#                                                         path_star=odir+tag+'/DET/sci_star.fits',
+#                                                         path_plan=odir+tag+'/DET/sci_plan.fits',
+#                                                         path_disk=odir+tag+'/DET/sci_disk.fits',
+#                                                         detn=False,
+#                                                         fdir=fdir)
+# 
+# =============================================================================
+# =============================================================================
+#     # add photon noise
+#     det.pnimgs(tag,
+#                odir,
+#                tags=['sci_imgs', 'ref_imgs'],
+#                tint=tint, # s
+#                time_comp=time[0], # yr
+#                wave_comp=wave[0], # micron
+#                Nobs=Nobs,
+#                overwrite=overwrite)
+# =============================================================================
 
     # subtract science and reference images
     #subtract_sci_ref(os.getcwd()+"/"+odir+name)
@@ -654,7 +662,7 @@ def generate_ims_nozodi(tele, Mp, ap, incl, long, dist, wavelength):
 #     planet_pos_mas_forced = round(planet_pos_mas_actual.value * imsc_final.value) / imsc_final.value
     #planet_pos_mas_forced = lamD_to_mas(planet_pos_lamD_forced, wave[0]*u.um, diam*u.m)
     #print("mas", planet_pos_mas_actual, planet_pos_mas_forced)
-    print("planet_pos_mas_forced", planet_pos_mas_forced)
+    
     x_plan_forced = np.sqrt((planet_pos_mas_forced/new_pixelscale.value)**2 - (y_plan-y_star)**2) + x_star
     xyplanet = np.array([[[x_plan_forced, y_plan]]])
     
@@ -769,6 +777,29 @@ wavelength=0.5
 
 coro, det = generate_ims("LUVOIR-A", Mp, ap, incl, long, zodis, dist, wavelength)
 
+
+do_this = True
+wavelength=0.5
+if do_this:
+    Mp = "1.0"
+    ap = "1.0"
+    incl_arr = ["00", "30", "60", "90"]
+    long_arr = ["00", "30"][:1]
+    dist_arr = ["10", "15"][:1]
+    zodi_arr = ["1", "5", "10", "20", "50", "100"]
+
+    #coro = coronagraph.coro(cdir)
+
+    for incl in incl_arr:
+        for long in long_arr:
+            for dist in dist_arr:
+                for zodis in zodi_arr:
+                    #pass
+                    print("Running Mp={}, ap={}, incl={}, long={}, dist={}, zodi={}".format(Mp, ap, incl, long, dist, zodis))
+                    coro, det = generate_ims("LUVOIR-A", Mp, ap, incl, long, zodis, dist, wavelength)
+
+
+assert False
 
 def downbin_psf(psf, imsz, wave, diam, tele):
     
