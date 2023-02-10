@@ -237,10 +237,10 @@ def process(config):
         
         
         # outside region
-        measured_noise_before_hipass_out = measure_noise(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        measured_noise_before_hipass_out = measure_noise(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
         measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
         
-        measured_noise_after_hipass_out = measure_noise(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        measured_noise_after_hipass_out = measure_noise(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
         measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
         expected_noise_out = np.sqrt(expected_noise_outside)
         
