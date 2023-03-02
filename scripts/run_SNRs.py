@@ -94,18 +94,12 @@ if tele == "LUVB":
     
     
 ap_sz_arr = np.arange(1, 6, 1)
-filter_sz_arr = np.arange(1, 21, 4)
-filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+filter_sz_arr = np.arange(1, 100, 1)
+#filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
-ap_sz_arr = [1]
-filter_sz_arr = [10]
 incl_arr = ["00", "30", "60", "90"]
 zodi_arr = ["1", "5", "10", "20", "50", "100"]
 longitude = "00"
-
-
-
-
 
 
 
