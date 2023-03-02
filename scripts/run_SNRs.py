@@ -5,6 +5,224 @@ import astropy.io.fits as pyfits
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+def region_ring(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz):
+    
+    imsz, imsz = sub_im.shape
+    imctr = (imsz-1)/2
+    
+    dr = 2*(2*ap_sz+1)
+    
+    noise_mask = np.zeros_like(sub_im)  
+    
+    signal_rad = np.sqrt((sci_signal_i-imctr)**2 + (sci_signal_j-imctr)**2)
+    inner_r = signal_rad - dr/2
+    outer_r = signal_rad + dr/2
+    
+    for i in range(imsz):
+        for j in range(imsz):
+            dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
+            if dist >= inner_r and dist < outer_r:
+                noise_mask[i, j] = 1
+                
+    noise_mask[sci_signal_i-ap_sz:sci_signal_i+ap_sz+1, sci_signal_j-ap_sz:sci_signal_j+ap_sz+1] = ~aperture
+    noise_mask[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
+    
+    zero_inds = np.where(noise_mask == 0.)
+    
+    noise_mask[zero_inds] = np.nan
+
+    noise_region = sub_im * noise_mask
+
+    return noise_region
+
+def region_circle(im, signal_i, signal_j, aperture, ap_sz, opposite=False):
+    
+    imsz, imsz = im.shape
+    imctr = (imsz-1)/2
+    
+    if opposite:
+        inner_r = -1
+    else:
+        inner_r = ap_sz
+
+    outer_r = 2*(2*ap_sz+1)
+    
+    noise_mask = np.ones_like(im) * np.nan
+    
+    for i in range(imsz):
+        for j in range(imsz):
+            d = np.sqrt((i-signal_i)**2 + (j-signal_j)**2)
+            if (d > inner_r) and (d < outer_r):
+                noise_mask[i, j] = 1.
+                
+    noise_region = im*noise_mask
+    
+    return noise_region
+
+def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angle, opposite=False):
+    
+    imsz, imsz = sub_im.shape
+    imctr = (imsz-1)/2
+
+    
+    noise_mask = np.zeros_like(sub_im)
+    
+    sig_rot = rotation_map[signal_i, signal_j]
+    
+    lower_ang = sig_rot-angle/2
+    upper_ang = sig_rot+angle/2
+    
+    
+    sig_dist = np.sqrt((signal_i-imctr)**2 + (signal_j-imctr)**2) 
+    
+    lower_dist = sig_dist - (ap_sz*2+1)
+    upper_dist = sig_dist + (ap_sz*2+1)
+    
+    
+    for i in range(imsz):
+        for j in range(imsz):
+            ang = rotation_map[i,j]
+            dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
+            if ang >= lower_ang and ang <= upper_ang and dist >= lower_dist and dist < upper_dist:
+                noise_mask[i, j] = 1
+    
+    if opposite:
+        pass
+    else:
+        noise_mask[signal_i-ap_sz:signal_i+ap_sz+1, signal_j-ap_sz:signal_j+ap_sz+1] = ~aperture
+
+
+    zero_inds = np.where(noise_mask == 0.)
+    noise_mask[zero_inds] = np.nan
+    
+    noise_region = sub_im * noise_mask
+    
+    return noise_region
+
+def get_opposite_wedge_region(wedge_region, im, signal_i_opp, signal_j_opp, ap_sz):
+    
+    imsz, imsz = wedge_region.shape
+    imctr = (imsz-1)/2
+
+    region_inds = ~np.isnan(wedge_region)
+    opp_region = np.zeros_like(wedge_region)
+    for i in range(imsz):
+        for j in range(imsz):
+            if region_inds[i,j]:
+                i_opp = int(imctr - (i-imctr))
+                j_opp = int(imctr - (j-imctr))
+                opp_region[i_opp, j_opp] = 1
+    opp_region[signal_i_opp-ap_sz:signal_i_opp+ap_sz+1, signal_j_opp-ap_sz:signal_j_opp+ap_sz+1] = 1
+    
+    zero_inds = np.where(opp_region == 0.)
+    opp_region[zero_inds] = np.nan
+    
+    opp_noise_region = im * opp_region
+    
+    return opp_noise_region
+    
+
+def sum_apertures_in_region(noise_region, aperture, ap_sz):
+    
+    nan_map = ~np.isnan(noise_region)
+    
+    noise_region_median = np.nanmedian(noise_region)
+    
+    noise_region_bkgr_rm = noise_region - noise_region_median
+    
+    
+    imsz, imsz = noise_region.shape
+    Npix_ap = np.sum(aperture)
+
+    apertures_sampled = 0
+    aperture_coords = []
+
+    counts_per_aperture = []
+
+    for i in range(imsz):
+        for j in range(imsz):
+            # aperture in question
+            if nan_map[i,j]:
+                noise_aperture = nan_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                if np.sum(noise_aperture[aperture]) == Npix_ap:
+                    #image[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1] = aperture
+                    nan_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1] = ~aperture & nan_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                    
+                    noise_aperture = noise_region_bkgr_rm[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                    counts_per_aperture.append(np.sum(noise_aperture[aperture]))
+                    apertures_sampled += 1
+                    aperture_coords.append([i, j])
+
+    aperture_coords = np.array(aperture_coords)
+    counts_per_aperture = np.array(counts_per_aperture)
+    
+    return counts_per_aperture, aperture_coords
+    
+def get_opp_coords(i, j, imctr):
+    i_opp = imctr - (i-imctr)
+    j_opp = imctr - (j-imctr)
+    return int(i_opp), int(j_opp)  
+
+            
+
+
+def sigma_clip(arr, thresh=3):
+    # sigma clip
+    inds_higher = np.where(arr > np.median(arr) + thresh*np.std(arr))
+    inds_lower = np.where(arr < np.median(arr) - thresh*np.std(arr))
+    arr[inds_higher] = np.nan
+    arr[inds_lower] = np.nan
+    
+    return arr
+ 
+
+
+def r2_correction(noise_region, sig_i, sig_j):
+    
+    imsz, imsz = noise_region.shape
+    imctr = (imsz-1)/2
+    
+    # get distribution of values by distance from center
+    dists = []
+    vals = []
+    
+    for i in range(imsz):
+        for j in range(imsz):
+            if ~np.isnan(noise_region[i,j]):
+                # distance from center
+                dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
+                val = noise_region[i,j]
+                dists.append(dist)
+                vals.append(val)
+    sig_dist = np.sqrt((sig_i-imctr)**2 + (sig_j-imctr)**2) 
+    
+    
+    dists = np.array(dists)
+
+    coeffs = np.polyfit(dists, vals, 2)
+    x_arr = np.arange(np.min(dists), np.max(dists), 0.01)
+    y_fit = coeffs[2] + coeffs[1]*x_arr + coeffs[0]*x_arr**2 
+# =============================================================================
+#     plt.figure()
+#     plt.scatter(dists, vals)
+#     plt.axvline(sig_dist, color="k")
+#     plt.plot(x_arr, y_fit, color="C1")
+# =============================================================================
+
+    r2_corrected_region = np.copy(noise_region)
+    for i in range(imsz):
+        for j in range(imsz):
+            if ~np.isnan(noise_region[i,j]):
+                # distance from center
+                dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
+                r2_fit = coeffs[2] + coeffs[1]*dist + coeffs[0]*dist**2 
+                r2_corrected_region[i,j] -= r2_fit
+                
+                # should I normalize to the value at the planet location??
+    
+    return r2_corrected_region
+
 def get_planet_locations_and_info(roll_angle, planet_pos_mas, pix_radius):
     # open an image just to get some information about it
     
@@ -64,8 +282,129 @@ def measure_noise(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j
     measured_noise = ezf.calc_noise_in_region_two_apertures(noise_region_bkgr_rm, aperture, ap_sz)
     
     return measured_noise
-    
 
+
+def measure_noise_circle(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                         aperture, ap_sz):
+    ## define noise region
+    nr_circle_sci = region_circle(im, sci_signal_i, sci_signal_j, aperture, ap_sz)
+    nr_circle_sci_opp = region_circle(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, opposite=True)
+    nr_circle_ref = region_circle(im, ref_signal_i, ref_signal_j, aperture, ap_sz)
+    nr_circle_ref_opp = region_circle(im, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, opposite=True)
+    
+    ## measure noise
+    counts_per_ap_nr_circle_sci, ap_coords_nr_circle_sci = sum_apertures_in_region(nr_circle_sci, aperture, ap_sz)
+    counts_per_ap_nr_circle_sci_opp, ap_coords_nr_circle_sci_opp = sum_apertures_in_region(nr_circle_sci_opp, aperture, ap_sz)
+    counts_per_ap_nr_circle_ref, ap_coords_nr_circle_ref = sum_apertures_in_region(nr_circle_ref, aperture, ap_sz)
+    counts_per_ap_nr_circle_ref_opp, ap_coords_nr_circle_ref_opp = sum_apertures_in_region(nr_circle_ref_opp, aperture, ap_sz)    
+
+    #### total noise counts
+    tot_sci_ap_counts_circle = np.concatenate((counts_per_ap_nr_circle_sci, counts_per_ap_nr_circle_sci_opp))
+    tot_ref_ap_counts_circle = np.concatenate((counts_per_ap_nr_circle_ref, counts_per_ap_nr_circle_ref_opp))
+    
+    ##### check if sci and ref regions have equal number of apertures sampled
+    if len(tot_sci_ap_counts_circle) == len(tot_ref_ap_counts_circle):
+        pass
+    elif len(tot_sci_ap_counts_circle) > len(tot_ref_ap_counts_circle):
+        num_inds_to_cut = len(tot_sci_ap_counts_circle) - len(tot_ref_ap_counts_circle)
+        tot_sci_ap_counts_circle = tot_sci_ap_counts_circle[:-num_inds_to_cut]
+    elif len(tot_sci_ap_counts_circle) < len(tot_ref_ap_counts_circle):
+        num_inds_to_cut = len(tot_ref_ap_counts_circle) - len(tot_sci_ap_counts_circle)
+        tot_ref_ap_counts_circle = tot_ref_ap_counts_circle[:-num_inds_to_cut]
+    else:
+        assert False, "Something is wrong"
+        
+    tot_noise_counts_circle = tot_sci_ap_counts_circle + -1 * tot_ref_ap_counts_circle
+
+    #### sigma clip 
+    tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
+    
+    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl)
+    
+    #print("Apertures sampled:", len(tot_noise_counts_circle))
+    #print("Measured noise circle", measured_noise_circle)
+    
+    return measured_noise_circle
+    
+    
+def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                         aperture, ap_sz):
+    
+    ## define noise region
+    nr_ring = region_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
+    
+    ## measure noise
+    counts_per_ap_nr_ring, ap_coords_nr_ring = sum_apertures_in_region(nr_ring, aperture, ap_sz)
+    
+    #### make sure that the number of apertures is even
+    if len(counts_per_ap_nr_ring) % 2 == 0:
+        pass
+    else:
+        counts_per_ap_nr_ring = counts_per_ap_nr_ring[:-1]
+        ap_coords_nr_ring = ap_coords_nr_ring[:-1]
+        
+    
+    tot_noise_counts_ring = counts_per_ap_nr_ring[0::2] + -1*counts_per_ap_nr_ring[1::2]
+    
+    # sigma clip
+    tot_noise_counts_ring_sgcl = sigma_clip(tot_noise_counts_ring)
+    
+    measured_noise_ring = np.nanstd(tot_noise_counts_ring_sgcl)
+    #print("Apertures sampled:", len(tot_noise_counts_ring))
+    #print("Measured noise ring", measured_noise_ring)
+    
+    return measured_noise_ring
+
+def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                         aperture, ap_sz, rotation_map):
+    ## define noise region
+    ### wedge  region
+    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+    nr_wedge_ref = region_wedge(im, ref_signal_i, ref_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_ref_opp = get_opposite_wedge_region(nr_wedge_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
+
+    #### do an r^2 correction on the wedge  region
+    nr_wedge_sci = r2_correction(nr_wedge_sci, sci_signal_i, sci_signal_j)
+    nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp, sci_signal_i, sci_signal_j)
+    nr_wedge_ref = r2_correction(nr_wedge_ref, sci_signal_i, sci_signal_j)
+    nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp, sci_signal_i, sci_signal_j)
+    
+    ## measure noise
+    counts_per_ap_nr_wedge_sci, ap_coords_nr_wedge_sci = sum_apertures_in_region(nr_wedge_sci, aperture, ap_sz)
+    counts_per_ap_nr_wedge_sci_opp, ap_coords_nr_wedge_sci_opp = sum_apertures_in_region(nr_wedge_sci_opp, aperture, ap_sz)
+    counts_per_ap_nr_wedge_ref, ap_coords_nr_wedge_ref = sum_apertures_in_region(nr_wedge_ref, aperture, ap_sz)
+    counts_per_ap_nr_wedge_ref_opp, ap_coords_nr_wedge_ref_opp = sum_apertures_in_region(nr_wedge_ref_opp, aperture, ap_sz)
+    
+    
+    tot_sci_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_sci, counts_per_ap_nr_wedge_sci_opp))
+    tot_ref_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_ref, counts_per_ap_nr_wedge_ref_opp))
+    
+    ##### check if sci and ref regions have equal number of apertures sampled
+    if len(tot_sci_ap_counts_wedge) == len(tot_ref_ap_counts_wedge):
+        pass
+    elif len(tot_sci_ap_counts_wedge) > len(tot_ref_ap_counts_wedge):
+        num_inds_to_cut = len(tot_sci_ap_counts_wedge) - len(tot_ref_ap_counts_wedge)
+        tot_sci_ap_counts_wedge = tot_sci_ap_counts_wedge[:-num_inds_to_cut]
+    elif len(tot_sci_ap_counts_wedge) < len(tot_ref_ap_counts_wedge):
+        num_inds_to_cut = len(tot_ref_ap_counts_wedge) - len(tot_sci_ap_counts_wedge)
+        tot_ref_ap_counts_wedge = tot_ref_ap_counts_wedge[:-num_inds_to_cut]
+    else:
+        assert False, "Something is wrong"
+    
+    tot_noise_counts_wedge = tot_sci_ap_counts_wedge + -1 * tot_ref_ap_counts_wedge
+    
+    #sigma clip
+    tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge_sgcl)
+    
+    print("Apertures sampled:", len(tot_noise_counts_wedge))
+    print("Measured noise wedge", measured_noise_wedge)
+    
+    return measured_noise_wedge
 
 
 # define some parameters
@@ -76,6 +415,7 @@ add_star = True
 planet_noise = True
 uniform_disk = False
 r2_disk = False
+noise_region = "wedge"
 
 
 matched_filter_dir = "../matched_filter_library/"
@@ -94,7 +434,7 @@ if tele == "LUVB":
     #matched_filter_single_datacube = np.load("Users/mcurr/PACKAGES/coroSims//matched_filter_LUVA_single_datacube.npy")
     
     
-ap_sz_arr = np.arange(1, 6, 1)
+ap_sz_arr = np.arange(1, 3, 1)
 filter_sz_arr = np.arange(1, 100, 1)
 #filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
@@ -107,10 +447,12 @@ longitude = "00"
 
 configs = []
 # do a uniform disk
-for ap_sz in ap_sz_arr:
-    for filter_sz in filter_sz_arr:
-        for zodis in zodi_arr:
-            configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
+# =============================================================================
+# for ap_sz in ap_sz_arr:
+#     for filter_sz in filter_sz_arr:
+#         for zodis in zodi_arr:
+#             configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
+# =============================================================================
 
 # set up configs
 for ap_sz in ap_sz_arr:
@@ -183,6 +525,14 @@ def process(config):
         
         sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
         
+        # get opposite coords
+        imsz, imsz = sci_im.shape
+        imctr = (imsz-1)/2
+        sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_signal_i, sci_signal_j, imctr)
+        ref_signal_i_opp, ref_signal_j_opp  = get_opp_coords(ref_signal_i, ref_signal_j, imctr)
+        
+        sci_out_i_opp, sci_out_j_opp = get_opp_coords(sci_out_i, sci_out_j, imctr)
+        ref_out_i_opp, ref_out_j_opp = get_opp_coords(ref_out_i, ref_out_j, imctr)
        
         
         # calculate maps
@@ -195,30 +545,85 @@ def process(config):
         # perform adi 
         sub_im = sci_im - ref_im
         
-# =============================================================================
-#         plt.figure()
-#         plt.imshow(sub_im, origin="lower")
-#         plt.axhline(sci_signal_i, color="green")
-#         plt.axvline(sci_signal_j, color="green")
-#         plt.axhline(sci_out_i, color="red")
-#         plt.axvline(sci_out_j, color="red")
-#         
-#         assert False
-# =============================================================================
-
+        # perform high pass filter on the sub im
+        sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
+        
+        
         
         # evaluate SNR before hipass
-        
-        
         #sub_SNR = ezf.calculate_SNR_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=False, force_signal=None)
         
         
-        #measured_noise_before_hipass = measure_noise(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
-        measured_noise_before_hipass, _, _ = ezf.calc_noise_in_region_testing(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
+        # measure noise
+        if noise_region == "circle":
+            
+            measured_noise_before_hipass = measure_noise_circle(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                                sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                                aperture, ap_sz)
+            
+            measured_noise_after_hipass = measure_noise_circle(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                               sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                               aperture, ap_sz)
+            
+            measured_noise_before_hipass_out = measure_noise_circle(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                    sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                    aperture, ap_sz)
+            
+            measured_noise_after_hipass_out = measure_noise_circle(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                   sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                   aperture, ap_sz)
+            
+        elif noise_region == "ring":
+            
+            measured_noise_before_hipass = measure_noise_ring(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                              sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                              aperture, ap_sz)
+            
+            measured_noise_after_hipass = measure_noise_ring(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                             sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                             aperture, ap_sz)
+            
+            measured_noise_before_hipass_out = measure_noise_ring(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                  aperture, ap_sz)
+            
+            measured_noise_after_hipass_out = measure_noise_ring(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                 sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                 aperture, ap_sz)
+        
+        elif noise_region == "wedge":
+            measured_noise_before_hipass = measure_noise_wedge(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                               sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                               aperture, ap_sz, rotation_map)
+            
+            measured_noise_after_hipass = measure_noise_wedge(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                                              sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                                              aperture, ap_sz, rotation_map)
+            
+            measured_noise_before_hipass_out = measure_noise_wedge(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                   sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                   aperture, ap_sz, rotation_map)
+            
+            measured_noise_after_hipass_out = measure_noise_wedge(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
+                                                                  aperture, ap_sz, rotation_map)
+            
+        
+            
+        
         measured_noise_before_hipass_arr.append(measured_noise_before_hipass)
+        measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
+        measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
+        measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
         
         
+        # get expected noise
         expected_noise = np.sqrt(expected_noise_planet)
+        expected_noise_out = np.sqrt(expected_noise_outside)
+
+        
+
+        # cross correlation
         
         cc_map_before_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask)
         
@@ -226,30 +631,6 @@ def process(config):
         cc_SNRs_before_hipass.append(cc_SNR_before_hipass)
         
         
-        # perform high pass filter on the sub im
-        sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
-        
-        
-        #measured_noise_after_hipass = measure_noise(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
-        measured_noise_after_hipass, _, _ = ezf.calc_noise_in_region_testing(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
-        measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
-        
-        
-        # outside region
-        #measured_noise_before_hipass_out = measure_noise(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
-        measured_noise_before_hipass_out, _, _ = ezf.calc_noise_in_region_testing(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz)
-        measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
-        
-        #measured_noise_after_hipass_out = measure_noise(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
-        measured_noise_after_hipass_out, _, _ = ezf.calc_noise_in_region_testing(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz)
-        measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
-        expected_noise_out = np.sqrt(expected_noise_outside)
-        
-        # evaluate SNR after hipass 
-        #sub_SNR_hipass = ezf.calculate_SNR_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=False, force_signal=None)
-        
-        
-        # cross correlation
         cc_map = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
         
         cc_SNR = ezf.cc_SNR_known_loc(cc_map, sci_signal_i, sci_signal_j, ap_sz, roll_angle, aperture, central_pixel, noise_region_radius, r2_correct=False, mask_antisignal=True)
@@ -333,7 +714,7 @@ elif parallel == True:
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
     header = "uniform_disk ap_sz filter_sz incl zodis median_cc_SNR median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out"
-    np.savetxt("data.dat", results, header=header, comments='')
+    np.savetxt("data_{}.dat".format(noise_region), results, header=header, comments='')
 
 
 
