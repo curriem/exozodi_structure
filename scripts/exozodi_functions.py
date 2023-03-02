@@ -216,7 +216,7 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     
     
     # define a location outside of the resonant ring
-    displacement = 12
+    displacement = 20
     sci_out_i = sci_plan_i 
     sci_out_j = sci_plan_j + displacement
     ref_out_i = ref_plan_i + int(np.sqrt(displacement**2/2))
@@ -259,8 +259,8 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     
 
     if uniform_disk:
-        disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
-    
+        #disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
+        disk_val_at_planet = 100
         sci_disk_im = disk_val_at_planet * np.ones_like(sci_disk_im)
         ref_disk_im = disk_val_at_planet * np.ones_like(ref_disk_im)
         
@@ -371,6 +371,100 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
 #     plot_im(science_image, 50, 50)
 #     plt.title("This one is the bad one")
     return science_image, reference_image, sci_planet_counts, ref_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
+
+def calc_noise_region_big_anulus(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, dr=6):
+    
+    imsz, imsz = sub_im.shape
+    anulus = np.zeros_like(sub_im)
+    center = (imsz)/2
+    
+    signal_rad = np.sqrt((sci_signal_i-center)**2 + (sci_signal_j-center)**2)
+    inner_r = signal_rad - dr/2
+    outer_r = signal_rad + dr/2
+    
+    for i in range(imsz):
+        for j in range(imsz):
+            dist = np.sqrt((i-center)**2 + (j-center)**2)
+            if dist >= inner_r and dist < outer_r:
+                anulus[i, j] = 1
+                
+    anulus[sci_signal_i-ap_sz:sci_signal_i+ap_sz+1, sci_signal_j-ap_sz:sci_signal_j+ap_sz+1] = ~aperture
+    anulus[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
+
+    return anulus
+            
+
+def calc_noise_in_region_testing(sub_im, sci_signal_i, sci_signal_j,ref_signal_i, ref_signal_j, aperture, ap_sz):
+    
+    new_noise_region = calc_noise_region_big_anulus(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, dr=2*(2*ap_sz+1))
+
+
+    
+    zero_inds = (new_noise_region == 0)
+    new_noise_region[zero_inds] = np.nan
+    noise_region = np.copy(sub_im) * new_noise_region
+    
+
+    noise_region[zero_inds] = np.nan
+    
+    nr_map = ~np.isnan(noise_region)
+    
+    
+    noise_region_median = np.nanmedian(noise_region)
+
+
+    noise_region_bkgr_rm = noise_region - noise_region_median
+    
+    imsz, imsz = noise_region.shape
+    Npix_ap = np.sum(aperture)
+
+    apertures_sampled = 0
+    aperture_coords = []
+
+    counts_per_aperture = []
+
+    for i in range(imsz):
+        for j in range(imsz):
+            # aperture in question
+            if nr_map[i,j]:
+                noise_aperture = nr_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                if np.sum(noise_aperture[aperture]) == Npix_ap:
+                    #image[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1] = aperture
+                    nr_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1] = ~aperture & nr_map[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                    
+                    noise_aperture = noise_region_bkgr_rm[i-ap_sz:i+ap_sz+1,j-ap_sz:j+ap_sz+1]
+                    counts_per_aperture.append(np.sum(noise_aperture[aperture]))
+                    apertures_sampled += 1
+                    aperture_coords.append([i, j])
+
+    aperture_coords = np.array(aperture_coords)
+
+    # make sure that the number of apertures is even
+    if len(counts_per_aperture) % 2 == 0:
+        pass
+    else:
+        counts_per_aperture = counts_per_aperture[:-1]
+        aperture_coords = aperture_coords[:-1]
+        
+    counts_per_aperture = np.array(counts_per_aperture)    
+
+    #print("Apertures Sampled:", apertures_sampled)
+    
+    noise_ap_arr = counts_per_aperture[0::2] + -1*counts_per_aperture[1::2]
+    
+    # sigma clip
+    inds_higher = np.where(noise_ap_arr > np.median(noise_ap_arr) + 3*np.std(noise_ap_arr))
+    inds_lower = np.where(noise_ap_arr < np.median(noise_ap_arr) - 3*np.std(noise_ap_arr))
+    noise_ap_arr[inds_higher] = np.nan
+    noise_ap_arr[inds_lower] = np.nan
+    
+
+    
+    measured_noise = np.nanstd(noise_ap_arr)
+    #print("Measured Noise:", measured_noise)
+    
+    return measured_noise, aperture_coords, counts_per_aperture
+
 
 def calculate_SNR_plan_an(im, signal_i, signal_j, valid_map, aperture, region_radius, r2_correct=False, force_signal=None):
     

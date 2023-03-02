@@ -46,6 +46,7 @@ def measure_noise(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j
     sci_noise_region = ezf.calculate_noise_region_plan_an(sub_im, sci_signal_i, sci_signal_j, inner_r=ap_sz, outer_r=noise_region_radius)
     ref_noise_region = ezf.calculate_noise_region_plan_an(sub_im, ref_signal_i, ref_signal_j, inner_r=ap_sz, outer_r=noise_region_radius)
     
+    
     sci_nr_map = ~np.isnan(sci_noise_region)
     ref_nr_map = ~np.isnan(ref_noise_region)
     nr_map = sci_nr_map | ref_nr_map
@@ -212,7 +213,8 @@ def process(config):
         #sub_SNR = ezf.calculate_SNR_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, valid_mask, aperture, noise_region_radius, r2_correct=False, force_signal=None)
         
         
-        measured_noise_before_hipass = measure_noise(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        #measured_noise_before_hipass = measure_noise(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        measured_noise_before_hipass, _, _ = ezf.calc_noise_in_region_testing(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
         measured_noise_before_hipass_arr.append(measured_noise_before_hipass)
         
         
@@ -228,15 +230,18 @@ def process(config):
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
         
         
-        measured_noise_after_hipass = measure_noise(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        #measured_noise_after_hipass = measure_noise(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, noise_region_radius=noise_region_radius)
+        measured_noise_after_hipass, _, _ = ezf.calc_noise_in_region_testing(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
         
         
         # outside region
-        measured_noise_before_hipass_out = measure_noise(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
+        #measured_noise_before_hipass_out = measure_noise(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
+        measured_noise_before_hipass_out, _, _ = ezf.calc_noise_in_region_testing(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz)
         measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
         
-        measured_noise_after_hipass_out = measure_noise(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
+        #measured_noise_after_hipass_out = measure_noise(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz, noise_region_radius=5)
+        measured_noise_after_hipass_out, _, _ = ezf.calc_noise_in_region_testing(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, aperture, ap_sz)
         measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
         expected_noise_out = np.sqrt(expected_noise_outside)
         
@@ -267,7 +272,7 @@ def process(config):
             frac_diff_med_arr.append(frac_diff_med)
             frac_diff_std_arr.append(frac_diff_std)
 
-        if iterations > 10:
+        if iterations > 500:
             
 
             if (frac_diff_med < 0.01) and (frac_diff_std < 0.01):
@@ -292,6 +297,7 @@ def process(config):
     median_measured_noise_before_hipass_out = np.median(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.median(measured_noise_after_hipass_out_arr)
     
+    print(median_measured_noise_after_hipass_out / expected_noise_out)
     return_arr = np.array([uniform_disk, ap_sz, filter_sz, int(incl), int(zodis), median_cc_SNR, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out])
@@ -301,7 +307,7 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
