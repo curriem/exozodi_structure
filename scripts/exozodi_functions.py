@@ -259,8 +259,8 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     
 
     if uniform_disk:
-        #disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
-        disk_val_at_planet = 100
+        disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
+        #disk_val_at_planet = 100
         sci_disk_im = disk_val_at_planet * np.ones_like(sci_disk_im)
         ref_disk_im = disk_val_at_planet * np.ones_like(ref_disk_im)
         

@@ -401,8 +401,8 @@ def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal
     tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
     measured_noise_wedge = np.nanstd(tot_noise_counts_wedge_sgcl)
     
-    print("Apertures sampled:", len(tot_noise_counts_wedge))
-    print("Measured noise wedge", measured_noise_wedge)
+    #print("Apertures sampled:", len(tot_noise_counts_wedge))
+    #print("Measured noise wedge", measured_noise_wedge)
     
     return measured_noise_wedge
 
@@ -415,7 +415,9 @@ add_star = True
 planet_noise = True
 uniform_disk = False
 r2_disk = False
-noise_region = "wedge"
+noise_region = "circle"
+#noise_region = "ring"
+#noise_region = "wedge"
 
 
 matched_filter_dir = "../matched_filter_library/"
@@ -448,10 +450,10 @@ longitude = "00"
 configs = []
 # do a uniform disk
 # =============================================================================
-# for ap_sz in ap_sz_arr:
-#     for filter_sz in filter_sz_arr:
-#         for zodis in zodi_arr:
-#             configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
+for ap_sz in ap_sz_arr:
+    for filter_sz in filter_sz_arr:
+        for zodis in zodi_arr:
+            configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
 # =============================================================================
 
 # set up configs
@@ -678,7 +680,7 @@ def process(config):
     median_measured_noise_before_hipass_out = np.median(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.median(measured_noise_after_hipass_out_arr)
     
-    print(median_measured_noise_after_hipass_out / expected_noise_out)
+    #print(median_measured_noise_after_hipass_out / expected_noise_out)
     return_arr = np.array([uniform_disk, ap_sz, filter_sz, int(incl), int(zodis), median_cc_SNR, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out])
