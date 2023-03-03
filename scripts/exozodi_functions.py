@@ -817,7 +817,7 @@ def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal
     
     return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp, nr_wedge_ref, nr_wedge_ref_opp
 
-def calc_CC_SNR(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz):
+def calc_CC_SNR(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region_name):
     
     zero_inds = np.where(cc_map == 0)
     cc_map[zero_inds] = np.nan
@@ -825,8 +825,11 @@ def calc_CC_SNR(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref
     
     
     noise_map[sci_signal_i-2*ap_sz:sci_signal_i+2*ap_sz+1, sci_signal_j-2*ap_sz:sci_signal_j+2*ap_sz+1] = 0
-    noise_map[ref_signal_i-2*ap_sz:ref_signal_i+2*ap_sz+1, ref_signal_j-2*ap_sz:ref_signal_j+2*ap_sz+1] = 0
-    noise_map[ref_signal_i_opp-2*ap_sz:ref_signal_i_opp+2*ap_sz+1, ref_signal_j_opp-2*ap_sz:ref_signal_j_opp+2*ap_sz+1] = 0
+    if noise_region_name == "ring":
+        noise_map[ref_signal_i-2*ap_sz:ref_signal_i+2*ap_sz+1, ref_signal_j-2*ap_sz:ref_signal_j+2*ap_sz+1] = 1
+    else:
+        noise_map[ref_signal_i-2*ap_sz:ref_signal_i+2*ap_sz+1, ref_signal_j-2*ap_sz:ref_signal_j+2*ap_sz+1] = 0
+        noise_map[ref_signal_i_opp-2*ap_sz:ref_signal_i_opp+2*ap_sz+1, ref_signal_j_opp-2*ap_sz:ref_signal_j_opp+2*ap_sz+1] = 0
 
     
     cc_noise_map = cc_map*noise_map

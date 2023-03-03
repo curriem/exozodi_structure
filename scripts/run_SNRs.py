@@ -253,8 +253,8 @@ def process(config):
         cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
         
         
-        cc_SNR_before_hipass = ezf.calc_CC_SNR(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
-        cc_SNR_after_hipass = ezf.calc_CC_SNR(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
+        cc_SNR_before_hipass = ezf.calc_CC_SNR(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+        cc_SNR_after_hipass = ezf.calc_CC_SNR(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
         
         cc_SNRs_before_hipass.append(cc_SNR_before_hipass)
                 
