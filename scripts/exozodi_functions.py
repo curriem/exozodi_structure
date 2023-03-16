@@ -764,7 +764,7 @@ def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
 
 def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                          sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                         aperture, ap_sz, rotation_map):
+                         aperture, ap_sz, rotation_map, corrections=True):
     ## define noise region
     ### wedge  region
     nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, 25.)
@@ -772,17 +772,18 @@ def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal
     nr_wedge_ref = region_wedge(im, ref_signal_i, ref_signal_j, aperture, ap_sz, rotation_map, 25.)
     nr_wedge_ref_opp = get_opposite_wedge_region(nr_wedge_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
 
-    #### do an r^2 correction on the wedge  region
-    nr_wedge_sci = r2_correction(nr_wedge_sci)
-    nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
-    nr_wedge_ref = r2_correction(nr_wedge_ref)
-    nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
-    
-    #### do an azimuthal correction on the wedge  region
-    nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
-    nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
-    nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
-    nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
+    if corrections:
+        #### do an r^2 correction on the wedge  region
+        nr_wedge_sci = r2_correction(nr_wedge_sci)
+        nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
+        nr_wedge_ref = r2_correction(nr_wedge_ref)
+        nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
+        
+        #### do an azimuthal correction on the wedge  region
+        nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+        nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+        nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
+        nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
     
     ## measure noise
     counts_per_ap_nr_wedge_sci, ap_coords_nr_wedge_sci = sum_apertures_in_region(nr_wedge_sci, aperture, ap_sz)
@@ -868,6 +869,10 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
 
 
     sci_nr_median = np.nanmedian(sci_noise_vals)
+# =============================================================================
+#     plt.imshow(sci_noise_vals)
+#     assert False
+# =============================================================================
     ref_nr_median = np.nanmedian(ref_noise_vals)
     
     
@@ -875,8 +880,10 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
     ref_sig = sub_im[ref_signal_mask]
     
     # subtract off background
-    sci_sig -= sci_nr_median
-    ref_sig -= ref_nr_median
+# =============================================================================
+#     sci_sig -= sci_nr_median
+#     ref_sig -= ref_nr_median
+# =============================================================================
     
     tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
     
