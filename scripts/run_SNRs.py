@@ -33,7 +33,9 @@ if tele == "LUVB":
     
     
 ap_sz_arr = np.arange(1, 3, 1)
-filter_sz_arr = np.arange(1, 100, 1)
+filter_sz_arr_pix = np.arange(1, 100, 1)
+im_sz = 100
+filter_sz_arr_fourier = im_sz / filter_sz_arr_pix
 #filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 incl_arr = ["00", "30", "60", "90"]
@@ -46,13 +48,13 @@ longitude = "00"
 configs = []
 # do a uniform disk
 for ap_sz in ap_sz_arr:
-    for filter_sz in filter_sz_arr:
+    for filter_sz in filter_sz_arr_fourier:
         for zodis in zodi_arr:
             configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
 
 # set up configs
 for ap_sz in ap_sz_arr:
-    for filter_sz in filter_sz_arr:
+    for filter_sz in filter_sz_arr_fourier:
         for incl in incl_arr:
             for zodis in zodi_arr:
                 configs.append([ap_sz, filter_sz, incl, zodis, "model"])
@@ -329,7 +331,7 @@ def process(config):
         assert False
 
     print(median_measured_noise_after_hipass_out / expected_noise_out)
-    return_arr = np.array([uniform_disk, ap_sz, filter_sz, int(incl), int(zodis), 
+    return_arr = np.array([uniform_disk, ap_sz, im_sz/filter_sz, int(incl), int(zodis), 
                            median_SNR_before_hipass, median_SNR_after_hipass,
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
@@ -366,7 +368,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
-    header = "uniform_disk ap_sz filter_sz incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass"
+    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass"
     np.savetxt("data_{}.dat".format(noise_region), results, header=header, comments='')
 
 
