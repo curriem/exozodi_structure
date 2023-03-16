@@ -89,6 +89,10 @@ def process(config):
     measured_noise_after_hipass_arr = []
     measured_noise_before_hipass_out_arr = []
     measured_noise_after_hipass_out_arr = []
+    
+    measured_signal_before_hipass_arr = []
+    measured_signal_after_hipass_arr = []
+    
     frac_diff_med_arr = []
     frac_diff_std_arr = []
     converged = False
@@ -223,6 +227,8 @@ def process(config):
         signal_before_hipass = ezf.measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
         signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
 
+        measured_signal_before_hipass_arr.append(signal_before_hipass)
+        measured_signal_after_hipass_arr.append(signal_after_hipass)
 
         SNR_before_hipass = signal_before_hipass / measured_noise_before_hipass
         SNR_after_hipass = signal_after_hipass / measured_noise_after_hipass
@@ -304,6 +310,9 @@ def process(config):
     median_measured_noise_after_hipass = np.median(measured_noise_after_hipass_arr)
     median_measured_noise_before_hipass_out = np.median(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.median(measured_noise_after_hipass_out_arr)
+    median_measured_signal_before_hipass = np.median(measured_signal_before_hipass_arr)
+    median_measured_signal_after_hipass = np.median(measured_signal_after_hipass_arr)
+
     
     verbose = False
     if verbose:
@@ -322,7 +331,8 @@ def process(config):
                            median_SNR_before_hipass, median_SNR_after_hipass,
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
-                           median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out])
+                           median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out,
+                           median_measured_signal_before_hipass, median_measured_signal_after_hipass])
     
     end_time = time.time()
     print("Time elapsed for process: {} s".format(round(end_time - start_time, 2)))
@@ -354,7 +364,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
-    header = "uniform_disk ap_sz filter_sz incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out"
+    header = "uniform_disk ap_sz filter_sz incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass"
     np.savetxt("data_{}.dat".format(noise_region), results, header=header, comments='')
 
 
