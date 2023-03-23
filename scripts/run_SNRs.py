@@ -442,7 +442,7 @@ def process(config):
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:
