@@ -266,25 +266,25 @@ def process(config):
                     nr_wedge_sci, nr_wedge_sci_opp, \
                     nr_wedge_ref, nr_wedge_ref_opp = ezf.measure_noise_wedge_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                                                                          sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                         aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                         aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_after_hipass, \
                     nr_wedge_sci, nr_wedge_sci_opp, \
                     nr_wedge_ref, nr_wedge_ref_opp = ezf.measure_noise_wedge_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                                                                          sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                         aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                         aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_before_hipass_out, \
                     nr_wedge_sci_out, nr_wedge_sci_opp_out, \
                     nr_wedge_ref_out, nr_wedge_ref_opp_out = ezf.measure_noise_wedge_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
                                                                        sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                       aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                       aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_after_hipass_out, \
                     nr_wedge_sci_out, nr_wedge_sci_opp_out, \
                     nr_wedge_ref_out, nr_wedge_ref_opp_out = ezf.measure_noise_wedge_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
                                                                       sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                      aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                      aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 noise_map_sci = ~np.isnan(nr_wedge_sci) | ~np.isnan(nr_wedge_sci_opp)
                 noise_map_ref = ~np.isnan(nr_wedge_ref) | ~np.isnan(nr_wedge_ref_opp)
@@ -293,22 +293,22 @@ def process(config):
                 measured_noise_before_hipass, \
                     nr_wedge_sci, nr_wedge_sci_opp = ezf.measure_noise_wedge_RDI(sub_im, sci_signal_i, sci_signal_j,
                                                                          sci_signal_i_opp, sci_signal_j_opp,
-                                                                         aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                         aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_after_hipass, \
                     nr_wedge_sci, nr_wedge_sci_opp = ezf.measure_noise_wedge_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
                                                                          sci_signal_i_opp, sci_signal_j_opp,
-                                                                         aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                         aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_before_hipass_out, \
                     nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
                                                                        sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                       aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                       aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_after_hipass_out, \
                     nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im_hipass, sci_out_i, sci_out_j,
                                                                       sci_out_i_opp, sci_out_j_opp,
-                                                                      aperture, ap_sz, rotation_map, DI=DI, corrections=wedge_corrections)
+                                                                      aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 noise_map_sci = ~np.isnan(nr_wedge_sci) | ~np.isnan(nr_wedge_sci_opp)
 
@@ -400,7 +400,7 @@ def process(config):
 #                 convergence_counter = 0
 # =============================================================================
 
-        if iterations == 1000:
+        if iterations == 100:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
@@ -441,7 +441,7 @@ def process(config):
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:
