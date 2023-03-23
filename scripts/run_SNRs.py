@@ -301,7 +301,7 @@ def process(config):
                                                                          aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
                 measured_noise_before_hipass_out, \
-                    nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
+                    nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im, sci_out_i, sci_out_j,
                                                                        sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
                                                                        aperture, ap_sz, rotation_map, corrections=wedge_corrections)
                 
