@@ -20,9 +20,9 @@ try:
     noise_region = str(sys.argv[3])
 except IndexError:
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING LUVA, ADI, CIRCLE.")
-    tele = "LUVA"
-    DI = "ADI"
-    noise_region = "circle"
+    tele = "LUVB"
+    DI = "RDI"
+    noise_region = "wedge"
 
 matched_filter_dir = "../matched_filter_library/"
 

@@ -377,7 +377,10 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     
     
     # define a location outside of the resonant ring
-    displacement = 20
+    if "LUVOIR-A" in im_dir:
+        displacement = 20
+    elif "LUVOIR-B" in im_dir:
+        displacement = 10
     sci_out_i = sci_plan_i 
     sci_out_j = sci_plan_j + displacement
     
