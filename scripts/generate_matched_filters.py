@@ -18,9 +18,9 @@ from scipy.ndimage import rotate
 psf_dir = "/Users/mcurr/PACKAGES/coroSims/"
 
 # parameters
-tele = "LUVA"
-pix_radius = 1
-roll_angle = 30.
+tele = "LUVB"
+pix_radius = 2
+roll_angle = 90.
 
 # nominal roll angles:
 # LUV-A: 38.94244126898137

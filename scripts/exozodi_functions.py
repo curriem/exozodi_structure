@@ -195,7 +195,9 @@ def get_psf_stamp(psf, psf_i, psf_j, pix_radius):
 
 
 
-def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zodis, aperture, target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, add_noise=True, add_star=True, uniform_disk=False, r2_disk=False):
+def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zodis, aperture,
+                          target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
+                          add_noise=True, add_star=True, uniform_disk=False, r2_disk=False):
     sci_plan_im_fits = pyfits.open(im_dir + "/DET/sci_plan.fits")
     sci_plan_im = sci_plan_im_fits[0].data[0, 0]
     
@@ -218,7 +220,10 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
     
     
     # define a location outside of the resonant ring
-    displacement = 20
+    if "LUVOIR-A" in im_dir:
+        displacement = 20
+    elif "LUVOIR-B" in im_dir:
+        displacement = 10
     sci_out_i = sci_plan_i 
     sci_out_j = sci_plan_j + displacement
     ref_out_i = ref_plan_i + int(np.sqrt(displacement**2/2))
@@ -353,6 +358,151 @@ def synthesize_images(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zo
 
     return science_image, reference_image, sci_planet_counts, ref_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
 
+def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
+                          target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
+                          add_noise=True, add_star=True, uniform_disk=False, r2_disk=False):
+    
+    sci_plan_im_fits = pyfits.open(im_dir + "/DET/sci_plan.fits")
+    sci_plan_im = sci_plan_im_fits[0].data[0, 0]
+    
+    sci_star_im_fits = pyfits.open(im_dir + "/DET/sci_star.fits")
+    sci_star_im = sci_star_im_fits[0].data[0,0]
+    
+    ref_star_im_fits = pyfits.open(im_dir + "/DET/ref_star.fits")
+    ref_star_im = ref_star_im_fits[0].data[0,0]
+    
+    
+    sci_aperture_mask = np.zeros_like(sci_plan_im)
+    sci_aperture_mask[sci_plan_i-pix_radius:sci_plan_i+pix_radius+1, sci_plan_j-pix_radius:sci_plan_j+pix_radius+1] = aperture
+    
+    
+    # define a location outside of the resonant ring
+    displacement = 20
+    sci_out_i = sci_plan_i 
+    sci_out_j = sci_plan_j + displacement
+    
+    
+    sci_aperture_mask_out = np.zeros_like(sci_plan_im)
+    sci_aperture_mask_out[sci_out_i-pix_radius:sci_out_i+pix_radius+1, sci_out_j-pix_radius:sci_out_j+pix_radius+1] = aperture
+    
+    
+    
+#     plot_im(aperture_mask, plan_i, plan_j)
+    
+    sci_plan_CR = np.sum(sci_plan_im * sci_aperture_mask)
+    
+    if add_star:
+        sci_star_CR = np.sum(sci_star_im * sci_aperture_mask)
+        ref_star_CR = np.sum(ref_star_im * sci_aperture_mask)
+        
+        sci_star_CR_out = np.sum(sci_star_im * sci_aperture_mask_out)
+        ref_star_CR_out = np.sum(ref_star_im * sci_aperture_mask_out)
+    else:
+        sci_star_CR = 0
+        sci_star_im = np.zeros_like(sci_star_im)
+        ref_star_CR = 0
+        ref_star_im = np.zeros_like(ref_star_im)
+        sci_star_CR_out = 0
+        ref_star_CR_out = 0
+        
+    sci_disk_im_fits = pyfits.open(im_dir + "/DET/sci_disk.fits")
+    sci_disk_im = sci_disk_im_fits[0].data[0, 0]
+    
+# =============================================================================
+#     ref_disk_im_fits = pyfits.open(im_dir + "/DET/ref_disk.fits")
+#     ref_disk_im = ref_disk_im_fits[0].data[0, 0]
+# =============================================================================
+    
+
+    if uniform_disk:
+        disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
+        #disk_val_at_planet = 100
+        sci_disk_im = disk_val_at_planet * np.ones_like(sci_disk_im)
+        #ref_disk_im = disk_val_at_planet * np.ones_like(ref_disk_im)
+        
+    if r2_disk:
+        center_disk_val = 10.
+        r2_disk = np.empty_like(sci_disk_im)
+        center = 50
+        for i in range(101):
+            for j in range(101):
+                dist = np.sqrt((i-center)**2 + (j-center)**2)
+                val = center_disk_val /dist**2
+                r2_disk[i, j] = val
+        r2_disk[50, 50] = center_disk_val
+        
+        sci_disk_im = r2_disk
+        #ref_disk_im = r2_disk
+        
+    
+    
+    sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
+    
+        
+    sci_back_CR = sci_disk_CR 
+    ref_back_CR = 0.
+    ref_back_CR_out = 0.
+    
+    ######### outside region ###########
+    sci_disk_CR_out = np.sum(sci_disk_im*sci_aperture_mask_out)
+    
+    
+    sci_back_CR_out = sci_disk_CR_out
+    
+    if add_star:
+        sci_back_CR_out += sci_star_CR_out
+        ref_back_CR_out += ref_star_CR_out
+    ###################################################
+    
+    # tot_noise_CR = 2.*sci_back_CR # ph/s
+    tot_noise_CR = sci_back_CR + ref_back_CR # ph/s
+    tot_noise_CR_out = sci_back_CR_out + ref_back_CR_out # ph/s
+    
+    
+    if planet_noise:
+        tot_noise_CR += sci_plan_CR
+
+        
+    tot_tint = target_SNR**2 * tot_noise_CR/sci_plan_CR**2 # s
+    
+
+    sci_tint = tot_tint/2
+    ref_tint = tot_tint/2
+
+    
+    if verbose:
+        print("Sci planet counts:", sci_plan_CR*sci_tint)
+        print("Sci Disk counts:", sci_disk_CR*sci_tint)
+        print("Sci Star counts:", sci_star_CR*sci_tint)
+        print("Sci Integration time:", sci_tint)
+        
+        #print("Ref planet counts:", ref_plan_CR*ref_tint)
+        #print("Ref Disk counts:", ref_disk_CR*ref_tint)
+        print("Ref Star counts:", ref_star_CR*ref_tint)
+        print("Ref Integration time:", ref_tint)
+        
+    sci_planet_counts = sci_plan_CR*sci_tint
+
+    science_image = (sci_plan_im + sci_disk_im + sci_star_im) * sci_tint
+    reference_image = ref_star_im * ref_tint
+    
+    if ~planet_noise:
+        science_poisson = np.random.poisson((sci_disk_im + sci_star_im) * sci_tint)
+        reference_poisson = np.random.poisson(ref_star_im * ref_tint)
+    elif planet_noise:
+        science_poisson = np.random.poisson((sci_disk_im + sci_star_im + sci_plan_im) * sci_tint)
+        reference_poisson = np.random.poisson(ref_star_im * ref_tint)
+    
+    
+
+    if add_noise:
+        science_image += science_poisson
+        reference_image += reference_poisson
+    
+    tot_noise_counts = tot_noise_CR*tot_tint
+    tot_noise_counts_out = tot_noise_CR_out*tot_tint
+
+    return science_image, reference_image, sci_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j)
 
 
 def downbin_psf(psf, imsc, imsz, wave, diam, tele):
@@ -689,9 +839,9 @@ def get_planet_locations_and_info(roll_angle, planet_pos_mas, pix_radius, im_dir
 
 
 
-def measure_noise_circle(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                         aperture, ap_sz):
+def measure_noise_circle_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                             sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                             aperture, ap_sz):
     ## define noise region
     nr_circle_sci = region_circle(im, sci_signal_i, sci_signal_j, aperture, ap_sz)
     nr_circle_sci_opp = region_circle(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, opposite=True)
@@ -731,6 +881,31 @@ def measure_noise_circle(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signa
     #print("Measured noise circle", measured_noise_circle)
     
     return measured_noise_circle, nr_circle_sci, nr_circle_sci_opp, nr_circle_ref, nr_circle_ref_opp
+
+def measure_noise_circle_RDI(im, sci_signal_i, sci_signal_j,
+                             sci_signal_i_opp, sci_signal_j_opp, 
+                             aperture, ap_sz):
+    ## define noise region
+    nr_circle_sci = region_circle(im, sci_signal_i, sci_signal_j, aperture, ap_sz)
+    nr_circle_sci_opp = region_circle(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, opposite=True)
+    
+    ## measure noise
+    counts_per_ap_nr_circle_sci, ap_coords_nr_circle_sci = sum_apertures_in_region(nr_circle_sci, aperture, ap_sz)
+    counts_per_ap_nr_circle_sci_opp, ap_coords_nr_circle_sci_opp = sum_apertures_in_region(nr_circle_sci_opp, aperture, ap_sz)
+
+    #### total noise counts
+    tot_noise_counts_circle = np.concatenate((counts_per_ap_nr_circle_sci, counts_per_ap_nr_circle_sci_opp))
+    
+
+    #### sigma clip 
+    tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
+    
+    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl)
+    
+    #print("Apertures sampled:", len(tot_noise_counts_circle))
+    #print("Measured noise circle", measured_noise_circle)
+    
+    return measured_noise_circle, nr_circle_sci, nr_circle_sci_opp
     
     
 def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
@@ -762,7 +937,7 @@ def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     
     return measured_noise_ring, nr_ring
 
-def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                          sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
                          aperture, ap_sz, rotation_map, corrections=True):
     ## define noise region
@@ -818,7 +993,41 @@ def measure_noise_wedge(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal
     
     return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp, nr_wedge_ref, nr_wedge_ref_opp
 
-def calc_CC_SNR(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region_name):
+def measure_noise_wedge_RDI(im, sci_signal_i, sci_signal_j,
+                         sci_signal_i_opp, sci_signal_j_opp,
+                         aperture, ap_sz, rotation_map, corrections=True):
+    ## define noise region
+    ### wedge  region
+    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+
+    if corrections:
+        #### do an r^2 correction on the wedge  region
+        nr_wedge_sci = r2_correction(nr_wedge_sci)
+        nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
+        
+        #### do an azimuthal correction on the wedge  region
+        nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+        nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+    
+    ## measure noise
+    counts_per_ap_nr_wedge_sci, ap_coords_nr_wedge_sci = sum_apertures_in_region(nr_wedge_sci, aperture, ap_sz)
+    counts_per_ap_nr_wedge_sci_opp, ap_coords_nr_wedge_sci_opp = sum_apertures_in_region(nr_wedge_sci_opp, aperture, ap_sz)
+    
+    
+    tot_noise_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_sci, counts_per_ap_nr_wedge_sci_opp))
+    
+    
+    #sigma clip
+    tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge_sgcl)
+    
+    #print("Apertures sampled:", len(tot_noise_counts_wedge))
+    #print("Measured noise wedge", measured_noise_wedge)
+    
+    return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp
+
+def calc_CC_SNR_ADI(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region_name):
     
     zero_inds = np.where(cc_map == 0)
     cc_map[zero_inds] = np.nan
@@ -832,6 +1041,32 @@ def calc_CC_SNR(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref
         noise_map[ref_signal_i-2*ap_sz:ref_signal_i+2*ap_sz+1, ref_signal_j-2*ap_sz:ref_signal_j+2*ap_sz+1] = 0
         noise_map[ref_signal_i_opp-2*ap_sz:ref_signal_i_opp+2*ap_sz+1, ref_signal_j_opp-2*ap_sz:ref_signal_j_opp+2*ap_sz+1] = 0
 
+    
+    cc_noise_map = cc_map*noise_map
+    zero_inds = np.where(cc_noise_map == 0)
+    cc_noise_map[zero_inds] = np.nan
+    
+    
+    cc_noise_vals = cc_noise_map[~np.isnan(cc_noise_map)]
+    
+    cc_noise_sgcl = sigma_clip(cc_noise_vals)
+    
+    cc_noise = np.nanstd(cc_noise_sgcl)
+    #print(cc_noise_sgcl)
+    
+    cc_SNR = cc_sig / cc_noise
+    
+    return cc_SNR
+
+def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_region_name):
+    
+    zero_inds = np.where(cc_map == 0)
+    cc_map[zero_inds] = np.nan
+    cc_sig = cc_map[sci_signal_i, sci_signal_j]
+    
+    
+    noise_map[sci_signal_i-2*ap_sz:sci_signal_i+2*ap_sz+1, sci_signal_j-2*ap_sz:sci_signal_j+2*ap_sz+1] = 0
+    
     
     cc_noise_map = cc_map*noise_map
     zero_inds = np.where(cc_noise_map == 0)
@@ -886,6 +1121,33 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
 # =============================================================================
     
     tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
+    
+    return tot_sig
+
+
+def measure_signal_RDI(sub_im, noise_map_sci, sci_signal_i, sci_signal_j, aperture):
+    imsz, imsz = sub_im.shape
+    apsz, apsz = aperture.shape
+    ap_rad = int((apsz - 1)/2)
+    
+    sci_signal_mask = np.zeros_like(sub_im, dtype=bool)
+    sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
+    
+    sci_noise_vals = sub_im*noise_map_sci
+    zero_inds = np.where(sci_noise_vals == 0)
+    sci_noise_vals[zero_inds] = np.nan
+
+
+    sci_nr_median = np.nanmedian(sci_noise_vals)
+      
+    sci_sig = sub_im[sci_signal_mask]
+    
+    # subtract off background
+# =============================================================================
+#     sci_sig -= sci_nr_median
+# =============================================================================
+    
+    tot_sig = np.sum(sci_sig)
     
     return tot_sig
 
