@@ -52,10 +52,11 @@ def calculate_positions(disk_model, ap, incl, longitude, dist, pixelscale, plot=
     y_plan = y_star + r_planet * np.sin(longitude) * np.cos(incl)
     if plot:
         plt.figure()
-        plt.imshow(disk_model)
+        plt.title("calculate_positions func")
+        plt.imshow(disk_model, origin="lower")
         plt.scatter(x_star, y_star, color="lime",s=50, marker="*")
         plt.scatter(x_plan, y_plan, color="lime", s=50, marker="o")
-        plt.show()
+        #plt.show()
     return x_star, y_star, x_plan, y_plan
 
 
@@ -301,7 +302,7 @@ if nofwdscat:
 
 
 
-def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
+def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=None):
     
    
 
@@ -330,6 +331,8 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     
     disk_fl = disk_dir + tag+".fits"
     
+
+        
     print(disk_fl)
     
     
@@ -372,6 +375,9 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     elif tele == "LUVOIR-B":
         disk_binsize = 3
     downbinned_disk, new_pixelscale = downbin_image(disk, disk_binsize, pixelscale)
+    
+
+
 
     # get rid of zeros in disk -> replace with second smallest value
     second_smallest = sorted(np.unique(downbinned_disk.flatten()))[1]
@@ -379,11 +385,22 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
 
     # get the planet and star positions
     x_star, y_star, x_plan, y_plan = calculate_positions(downbinned_disk, ap*u.AU, incl*u.deg, long*u.deg, dist*u.pc, new_pixelscale, plot=True)
+
+    # this is correct ^ (checked 03/22)
+
     
     
-    print(downbinned_disk.shape)
     
-    print(x_star, y_star, x_plan, y_plan )
+    print("Shape of raw disk", disk.shape)
+    print("Shape of downbinned disk:", downbinned_disk.shape)
+        
+    print("Locations:")
+    print("x_star", x_star)
+    print("y_star", y_star)
+    print("x_plan", x_plan)
+    print("y_plan", y_plan)
+    
+    #assert False
     
     
     
@@ -415,8 +432,9 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
    # print("lamD", planet_pos_lamD_actual, planet_pos_lamD_forced)
     # round to closest 0.5 lam/D in final image space
     imsc_final = 0.5*(wavelength * 1e-6 / (0.9*diam) * u.radian).to(u.mas)
-    print(planet_pos_mas_actual, planet_pos_lamD_actual)
-    print(imsc_final)
+    print("planet_pos_mas_actual:", planet_pos_mas_actual)
+    print("planet_pos_lamD_actual:", planet_pos_lamD_actual)
+    print("final imsc:", imsc_final)
     def nearest(n, x):
         asdf = n % x > x // 2
         return n + (-1)**(1 - asdf) * abs(x * asdf - n % x)
@@ -426,8 +444,9 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     #planet_pos_mas_forced = lamD_to_mas(planet_pos_lamD_forced, wave[0]*u.um, diam*u.m)
     #print("mas", planet_pos_mas_actual, planet_pos_mas_forced)
     print("planet_pos_mas_forced", planet_pos_mas_forced)
-    print("imsc final", imsc_final)
     x_plan_forced = np.sqrt((planet_pos_mas_forced/new_pixelscale.value)**2 - (y_plan-y_star)**2) + x_star
+    print("x_plan_forced:", x_plan_forced)
+    print("y_plan:", y_plan)
     xyplanet = np.array([[[x_plan_forced, y_plan]]])
     print(xyplanet)
     
@@ -466,15 +485,82 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
     print("Planet position (mas)", planet_pos_mas)
     planet_pos_lamD = mas_to_lamD(planet_pos_mas, wave[0]*u.um, 0.9*diam*u.m)
     
-    phi_roll = calculate_roll_angle(planet_pos_lamD.value, coro)
+    if set_roll_angle == None:
+        phi_roll = calculate_roll_angle(planet_pos_lamD.value, coro)
+    else: 
+        phi_roll = set_roll_angle * u.deg
     print("Roll angle:", phi_roll)
     print("Planet position (lam/D)", planet_pos_lamD)
-    #phi_roll = 30. * u.deg
+    
     coro.phi_roll = phi_roll
     coro.planet_pos_lamD = planet_pos_lamD
     
     tag += "-rang_{}".format(round(phi_roll.value)) 
     coro.name = tag
+    
+    
+    
+    
+# =============================================================================
+#     offax_arr = pyfits.getdata(cdir+'offax_psf.fits', 0)
+#     offax_psf_offset_list = pyfits.getdata(cdir+'offax_psf_offset_list.fits', 0)
+#     x_off, y_off = offax_psf_offset_list[60]
+#     x_off = x_off/0.25 + 119
+#     y_off = y_off/0.25 + 119
+# 
+#     plt.figure()
+#     plt.imshow(offax_arr[60], origin="lower", interpolation="nearest")
+#     plt.axhline(y_off, color="k", linestyle=":")
+#     plt.axvline(x_off, color="k", linestyle=":")
+# 
+#     
+#     
+#     offax_arr = offax_arr[:, 1:, 1:]
+#     
+#     plt.figure()
+#     plt.imshow(offax_arr[60], origin="lower", interpolation="nearest")
+#     plt.axhline(y_off, color="k", linestyle=":")
+#     plt.axvline(x_off, color="k", linestyle=":")
+# 
+#     plt.show()
+#     print(offax_arr.shape)
+#     assert False
+#     
+#     
+#     
+#     print(coro.offax_psf.shape)
+#     
+#     plt.figure()
+#     plt.imshow(coro.offax_psf[60], origin="lower", interpolation="nearest")
+#     plt.title("before")
+#     plt.axhline(119., color="k", linestyle=":")
+#     
+#     corrected_offax_arr = np.empty_like(coro.offax_psf)
+#     noffax, imsz_offax, imsz_offax = corrected_offax_arr.shape
+#     for i_offax in range(noffax):
+#         temp_arr = np.copy(coro.offax_psf[i_offax])
+#         #delete bottom row
+#         temp_arr = np.delete(temp_arr, 0, axis=0)
+#         
+#         #duplicate bottom row and append it to bottom
+#         top_row = np.copy(temp_arr[-1, 0:])
+#         
+#         # append top row duplicate to top
+#         temp_arr = np.vstack([temp_arr, top_row])
+#         
+#         corrected_offax_arr[i_offax] = temp_arr
+#         
+#         
+#         
+#     plt.figure()
+#     plt.imshow(corrected_offax_arr[60], origin="lower", interpolation="nearest")
+#     plt.title("after")
+#     plt.axhline(119., color="k", linestyle=":")
+#     
+#     
+#     plt.show()
+#     assert False
+# =============================================================================
     
     
     # make the science and reference coronagraph images
@@ -483,6 +569,8 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
                        add_disk=True,
                        tag='sci',
                        save_all=True)
+    
+    
     ref = coro.sim_ref(rang=phi_roll.value,
                        add_star=True,
                        add_plan=True,
@@ -499,38 +587,6 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength):
                tags=['sci_imgs', 'sci_star', 'sci_plan', 'sci_disk', 'ref_imgs', 'ref_star', 'ref_plan', 'ref_disk'],
                #tags = ["sci_plan"],
                overwrite=overwrite)
-
-# =============================================================================
-#     tint, cr_star, cr_plan, cr_disk, cr_detn = det.tint(tag,
-#                                                         odir,
-#                                                         tag='sci_imgs',
-#                                                         papt=papt, # pix
-#                                                         rapt=rapt, # lambda/D
-#                                                         time_comp=time[0], # yr
-#                                                         wave_comp=wave[0], # micron
-#                                                         snr_targ=7.,
-#                                                         path_star=odir+tag+'/DET/sci_star.fits',
-#                                                         path_plan=odir+tag+'/DET/sci_plan.fits',
-#                                                         path_disk=odir+tag+'/DET/sci_disk.fits',
-#                                                         detn=False,
-#                                                         fdir=fdir)
-# 
-# =============================================================================
-# =============================================================================
-#     # add photon noise
-#     det.pnimgs(tag,
-#                odir,
-#                tags=['sci_imgs', 'ref_imgs'],
-#                tint=tint, # s
-#                time_comp=time[0], # yr
-#                wave_comp=wave[0], # micron
-#                Nobs=Nobs,
-#                overwrite=overwrite)
-# =============================================================================
-
-    # subtract science and reference images
-    #subtract_sci_ref(os.getcwd()+"/"+odir+name)
-    
     return coro, det
 
 
@@ -617,11 +673,6 @@ def generate_ims_nozodi(tele, Mp, ap, incl, long, dist, wavelength):
 
     # get the planet and star positions
     x_star, y_star, x_plan, y_plan = calculate_positions(downbinned_disk, ap*u.AU, incl*u.deg, long*u.deg, dist*u.pc, new_pixelscale, plot=True)
-    
-    
-    print(downbinned_disk.shape)
-    
-    print(x_star, y_star, x_plan, y_plan )
     
     
     
@@ -771,11 +822,11 @@ Mp = "1.0"
 ap = "1.0"
 incl = "00"
 long = "00"
-dist = "10"
+dist = "10" 
 zodis = "1"
 wavelength=0.5
 
-coro, det = generate_ims("LUVOIR-A", Mp, ap, incl, long, zodis, dist, wavelength)
+coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength)
 
 
 do_this = True
@@ -783,6 +834,8 @@ wavelength=0.5
 if do_this:
     Mp = "1.0"
     ap = "1.0"
+    set_roll_angle = None
+    
     incl_arr = ["00", "30", "60", "90"]
     long_arr = ["00", "30"][:1]
     dist_arr = ["10", "15"][:1]
@@ -796,7 +849,7 @@ if do_this:
                 for zodis in zodi_arr:
                     #pass
                     print("Running Mp={}, ap={}, incl={}, long={}, dist={}, zodi={}".format(Mp, ap, incl, long, dist, zodis))
-                    coro, det = generate_ims("LUVOIR-A", Mp, ap, incl, long, zodis, dist, wavelength)
+                    coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=set_roll_angle)
 
 
 assert False

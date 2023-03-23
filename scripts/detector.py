@@ -149,7 +149,7 @@ class det():
         if tele_name == "LUVOIR-A":
             shift_order = 1
         elif tele_name == "LUVOIR-B":
-            shift_order = 0
+            shift_order = 1
         else:
             assert False, "Telescope name {} not recognized!".format(tele_name)
                 
@@ -186,7 +186,7 @@ class det():
                     for j in range(Nwave):
                         
                         # Scale image to imsc.
-                        temp = np.exp(zoom(np.log(hdul[0].data[i, j]), fact[j], mode='nearest', order=5)) # interpolate in log-space to avoid negative values
+                        temp = np.exp(zoom(np.log(hdul[0].data[i, j]), fact[j], mode='nearest', order=1)) # interpolate in log-space to avoid negative values
                         temp *= norm[i, j]/np.sum(temp) # ph/s
                         
                         # Center image so that (imsz-1)/2 is center.

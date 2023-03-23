@@ -87,11 +87,17 @@ class coro():
         self.set_pang(0.)
         
         # Center coronagraph model so that image size is odd and central pixel is center.
-        if (('LUVOIR-A_APLC_10bw_smallFPM_2021-05-05_Dyn10pm-nostaticabb' in cdir) or ('LUVOIR-A_APLC_18bw_medFPM_2021-05-07_Dyn10pm-nostaticabb' in cdir) or ('LUVOIR-B-VC6_timeseries' in cdir)):
+        if (('LUVOIR-A_APLC_10bw_smallFPM_2021-05-05_Dyn10pm-nostaticabb' in cdir) or ('LUVOIR-A_APLC_18bw_medFPM_2021-05-07_Dyn10pm-nostaticabb' in cdir)):
             self.stellar_intens_1 = self.stellar_intens_1[:, 1:, 1:]
             if (self.hasref == True):
                 self.stellar_intens_2 = self.stellar_intens_2[:, 1:, 1:]
             self.offax_psf = self.offax_psf[:, :-1, 1:]
+        
+        elif ('LUVOIR-B-VC6_timeseries' in cdir):
+            self.stellar_intens_1 = self.stellar_intens_1[:, 1:, 1:]
+            if (self.hasref == True):
+                self.stellar_intens_2 = self.stellar_intens_2[:, 1:, 1:]
+            self.offax_psf = self.offax_psf[:, 1:, 1:]
         else:
             raise UserWarning('Please validate centering for this unknown coronagraph model')
         
@@ -510,7 +516,6 @@ class coro():
         # Scale disk to units of lambda/D.
         wave_inv = 1./(self.scene.wave*1e-6) # 1/m
         fact = self.scene.pixscale*mas2rad*wave_inv*0.9*self.diam/self.imsc # lambda/D
-
         disk = np.zeros((self.scene.Ntime, self.scene.Nwave, self.imsz, self.imsz)) # ph/s
         counter_time = 0
         for i in range(self.scene.Ntime):
@@ -519,17 +524,20 @@ class coro():
                 sys.stdout.write('\r   Finished %.0f of %.0f times, %.0f of %.0f wavelengths' % (counter_time, self.scene.Ntime, counter_wave, self.scene.Nwave))
                 sys.stdout.flush()
                 counter_wave += 1
-                temp = np.exp(zoom(np.log(diskimage[i, j]), fact[j], mode='nearest', order=5)) # interpolate in log-space to avoid negative values
+                #### THE PROBLEM CREATING ARTIFACTS WAS THE ORDER::: CHANGED FROM ORDER 5 TO ORDER 1 TO AVOID OVERFITTING 
+                #### FOR BOTH ZOOM AND SHIFT
+                temp = np.exp(zoom(np.log(diskimage[i, j]), fact[j], mode='nearest', order=1)) # interpolate in log-space to avoid negative values
                 temp = temp/fact[j]**2
+
                 
                 # Center disk so that (imsz-1)/2 is center.
                 if ((temp.shape[0] % 2 == 0) and (self.imsz % 2 != 0)):
                     temp = np.pad(temp, ((0, 1), (0, 1)), mode='edge')
-                    temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=5)) # interpolate in log-space to avoid negative values
+                    temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=1)) # interpolate in log-space to avoid negative values
                     temp = temp[1:-1, 1:-1]
                 elif ((temp.shape[0] % 2 != 0) and (self.imsz % 2 == 0)):
                     temp = np.pad(temp, ((0, 1), (0, 1)), mode='edge')
-                    temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=5)) # interpolate in log-space to avoid negative values
+                    temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=1)) # interpolate in log-space to avoid negative values
                     temp = temp[1:-1, 1:-1]
                 
                 # Crop disk to coronagraph model size.
