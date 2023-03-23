@@ -304,6 +304,8 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
     ref_back_CR_out = ref_disk_CR_out
     
     if add_star:
+        sci_back_CR += sci_star_CR
+        ref_back_CR += ref_star_CR
         sci_back_CR_out += sci_star_CR_out
         ref_back_CR_out += ref_star_CR_out
     ###################################################
@@ -315,13 +317,14 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
     
     if planet_noise:
         tot_noise_CR += sci_plan_CR
+        tot_noise_CR += ref_plan_CR
 
         
-    tot_tint = target_SNR**2 * tot_noise_CR/sci_plan_CR**2 # s
+    tot_tint = target_SNR**2 * tot_noise_CR/(sci_plan_CR+ref_plan_CR)**2 # s
     
 
-    sci_tint = tot_tint/2
-    ref_tint = tot_tint/2
+    sci_tint = tot_tint 
+    ref_tint = tot_tint 
 
     
     if verbose:
@@ -335,6 +338,8 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
         print("Ref Star counts:", ref_star_CR*ref_tint)
         print("Ref Integration time:", ref_tint)
         
+        print("SNR calculation:", (sci_plan_CR*sci_tint +ref_plan_CR*ref_tint) / np.sqrt(sci_plan_CR*sci_tint +ref_plan_CR*ref_tint + sci_disk_CR*sci_tint +sci_star_CR*sci_tint + ref_disk_CR*ref_tint + ref_star_CR*ref_tint) )
+        assert False
     sci_planet_counts, ref_planet_counts = sci_plan_CR*sci_tint, ref_plan_CR*ref_tint
 
     science_image = (sci_plan_im + sci_disk_im + sci_star_im) * sci_tint
@@ -453,6 +458,8 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     sci_back_CR_out = sci_disk_CR_out
     
     if add_star:
+        sci_back_CR += sci_star_CR
+        ref_back_CR += ref_star_CR
         sci_back_CR_out += sci_star_CR_out
         ref_back_CR_out += ref_star_CR_out
     ###################################################
@@ -469,8 +476,8 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     tot_tint = target_SNR**2 * tot_noise_CR/sci_plan_CR**2 # s
     
 
-    sci_tint = tot_tint/2
-    ref_tint = tot_tint/2
+    sci_tint = tot_tint
+    ref_tint = tot_tint
 
     
     if verbose:
@@ -483,6 +490,9 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         #print("Ref Disk counts:", ref_disk_CR*ref_tint)
         print("Ref Star counts:", ref_star_CR*ref_tint)
         print("Ref Integration time:", ref_tint)
+        
+        print("SNR calculation:", (sci_plan_CR*sci_tint) / np.sqrt(sci_plan_CR*sci_tint + sci_disk_CR*sci_tint +sci_star_CR*sci_tint + ref_star_CR*ref_tint) )
+        assert False
         
     sci_planet_counts = sci_plan_CR*sci_tint
 

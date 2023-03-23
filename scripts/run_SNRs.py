@@ -19,10 +19,11 @@ try:
     DI = str(sys.argv[2])
     noise_region = str(sys.argv[3])
 except IndexError:
-    print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING LUVA, ADI, CIRCLE.")
-    tele = "LUVB"
-    DI = "RDI"
-    noise_region = "wedge"
+    
+    tele = "LUVA"
+    DI = "ADI"
+    noise_region = "circle"
+    print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
 
 matched_filter_dir = "../matched_filter_library/"
 
@@ -416,7 +417,7 @@ def process(config):
     median_measured_signal_after_hipass = np.median(measured_signal_after_hipass_arr)
 
     
-    verbose = False
+    verbose = True
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
@@ -441,12 +442,12 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
     data = []
-
+    configs = [([1, 10, "00", "1", "uniform"])]
     for config in configs:
         
         data_arr  = process(config)
