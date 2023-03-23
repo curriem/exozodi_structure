@@ -302,7 +302,7 @@ def process(config):
 #                 convergence_counter = 0
 # =============================================================================
 
-        if iterations == 100:
+        if iterations == 1000:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
