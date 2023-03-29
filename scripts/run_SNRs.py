@@ -442,12 +442,13 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
     data = []
     configs = [([1, 10, "00", "1", "uniform"])]
+    configs = [([1, 101., "60", "100", "model"])]
     for config in configs:
         
         data_arr  = process(config)
