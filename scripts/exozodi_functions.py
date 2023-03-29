@@ -221,9 +221,10 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
     
     # define a location outside of the resonant ring
     if "LUVOIR-A" in im_dir:
-        displacement = 20
+        out_loc = 90
     elif "LUVOIR-B" in im_dir:
-        displacement = 10
+        out_loc = 80
+    displacement = out_loc - sci_plan_j
     sci_out_i = sci_plan_i 
     sci_out_j = sci_plan_j + displacement
     ref_out_i = ref_plan_i + int(np.sqrt(displacement**2/2))
@@ -244,19 +245,35 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
     sci_plan_CR = np.sum(sci_plan_im * sci_aperture_mask)
     ref_plan_CR = np.sum(ref_plan_im * ref_aperture_mask)
     
+    
     if add_star:
-        sci_star_CR = np.sum(sci_star_im * sci_aperture_mask)
-        ref_star_CR = np.sum(ref_star_im * ref_aperture_mask)
+        sci_star_CR1 = np.sum(sci_star_im * sci_aperture_mask)
+        sci_star_CR2 = np.sum(ref_star_im * sci_aperture_mask)
+
+        ref_star_CR1 = np.sum(ref_star_im * ref_aperture_mask)
+        ref_star_CR2 = np.sum(sci_star_im * ref_aperture_mask)
+
         
-        sci_star_CR_out = np.sum(sci_star_im * sci_aperture_mask_out)
-        ref_star_CR_out = np.sum(ref_star_im * ref_aperture_mask_out)
+        sci_star_CR1_out = np.sum(sci_star_im * sci_aperture_mask_out)
+        sci_star_CR2_out = np.sum(ref_star_im * sci_aperture_mask_out)
+        ref_star_CR1_out = np.sum(ref_star_im * ref_aperture_mask_out)
+        ref_star_CR2_out = np.sum(sci_star_im * ref_aperture_mask_out)
+
     else:
-        sci_star_CR = 0
+        sci_star_CR1 = 0
+        ref_star_CR1 = 0
+        sci_star_CR2 = 0
+        ref_star_CR2 = 0
+        
+        sci_star_CR1_out = 0
+        ref_star_CR1_out = 0
+        sci_star_CR2_out = 0
+        ref_star_CR2_out = 0
+        
         sci_star_im = np.zeros_like(sci_star_im)
-        ref_star_CR = 0
         ref_star_im = np.zeros_like(ref_star_im)
-        sci_star_CR_out = 0
-        ref_star_CR_out = 0
+        
+  
         
     sci_disk_im_fits = pyfits.open(im_dir + "/DET/sci_disk.fits")
     sci_disk_im = sci_disk_im_fits[0].data[0, 0]
@@ -266,8 +283,11 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
     
 
     if uniform_disk:
-        disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
-        #disk_val_at_planet = 100
+        
+        if add_star:
+            disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]
+        else:
+            disk_val_at_planet = sci_disk_im[sci_plan_i, sci_plan_j]*100
         sci_disk_im = disk_val_at_planet * np.ones_like(sci_disk_im)
         ref_disk_im = disk_val_at_planet * np.ones_like(ref_disk_im)
         
@@ -287,79 +307,110 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
         
     
     
-    sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
+    #sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
+    #ref_disk_CR = np.sum(ref_disk_im*ref_aperture_mask)
+    
+    sci_disk_CR1 = np.sum(sci_disk_im*sci_aperture_mask)
+    sci_disk_CR2 = np.sum(ref_disk_im*sci_aperture_mask)
+
+    ref_disk_CR1 = np.sum(ref_disk_im*ref_aperture_mask)
+    ref_disk_CR2 = np.sum(sci_disk_im*ref_aperture_mask)
+
     
     
-    ref_disk_CR = np.sum(ref_disk_im*ref_aperture_mask)
+
     
-    sci_back_CR = sci_disk_CR 
-    ref_back_CR = ref_disk_CR 
+    sci_back_CR1 = sci_disk_CR1
+    sci_back_CR2 = sci_disk_CR2
+    ref_back_CR1 = ref_disk_CR1
+    ref_back_CR2 = ref_disk_CR2
+    
     
     ######### outside region ###########
-    sci_disk_CR_out = np.sum(sci_disk_im*sci_aperture_mask_out)
+    sci_disk_CR1_out = np.sum(sci_disk_im*sci_aperture_mask_out)
+    sci_disk_CR2_out = np.sum(ref_disk_im*sci_aperture_mask_out)
+
+    ref_disk_CR1_out = np.sum(ref_disk_im*ref_aperture_mask_out)
+    ref_disk_CR2_out = np.sum(sci_disk_im*ref_aperture_mask_out)
+
     
-    ref_disk_CR_out = np.sum(ref_disk_im*ref_aperture_mask_out)
+    sci_back_CR1_out = sci_disk_CR1_out
+    ref_back_CR1_out = ref_disk_CR1_out
+    sci_back_CR2_out = sci_disk_CR2_out
+    ref_back_CR2_out = ref_disk_CR2_out
     
-    sci_back_CR_out = sci_disk_CR_out
-    ref_back_CR_out = ref_disk_CR_out
+    sci_back_CR1 += sci_star_CR1
+    ref_back_CR1 += ref_star_CR1
+    sci_back_CR2 += sci_star_CR2
+    ref_back_CR2 += ref_star_CR2
     
-    if add_star:
-        sci_back_CR += sci_star_CR
-        ref_back_CR += ref_star_CR
-        sci_back_CR_out += sci_star_CR_out
-        ref_back_CR_out += ref_star_CR_out
+    sci_back_CR1_out += sci_star_CR1_out
+    ref_back_CR1_out += ref_star_CR1_out
+    sci_back_CR2_out += sci_star_CR2_out
+    ref_back_CR2_out += ref_star_CR2_out
     ###################################################
     
+    
+    
     # tot_noise_CR = 2.*sci_back_CR # ph/s
-    tot_noise_CR = sci_back_CR + ref_back_CR # ph/s
-    tot_noise_CR_out = sci_back_CR_out + ref_back_CR_out # ph/s
+    tot_noise_CR = sci_back_CR1 + ref_back_CR1 + sci_back_CR2 + ref_back_CR2 # ph/s
+    tot_noise_CR_out = sci_back_CR1_out + ref_back_CR1_out + sci_back_CR2_out + ref_back_CR2_out # ph/s
+    
+    
     
     
     if planet_noise:
         tot_noise_CR += sci_plan_CR
         tot_noise_CR += ref_plan_CR
-
-        
+    
     tot_tint = target_SNR**2 * tot_noise_CR/(sci_plan_CR+ref_plan_CR)**2 # s
-    
 
-    sci_tint = tot_tint 
-    ref_tint = tot_tint 
 
-    
     if verbose:
-        print("Sci planet counts:", sci_plan_CR*sci_tint)
-        print("Sci Disk counts:", sci_disk_CR*sci_tint)
-        print("Sci Star counts:", sci_star_CR*sci_tint)
-        print("Sci Integration time:", sci_tint)
+        print("Sci planet counts:", sci_plan_CR*tot_tint)
+        print("Sci Disk counts:", (sci_disk_CR1 + sci_disk_CR2)*tot_tint)
+        print("Sci Star counts:", (sci_star_CR1 + sci_star_CR2)*tot_tint)
+        print("Sci Integration time:", tot_tint)
         
-        print("Ref planet counts:", ref_plan_CR*ref_tint)
-        print("Ref Disk counts:", ref_disk_CR*ref_tint)
-        print("Ref Star counts:", ref_star_CR*ref_tint)
-        print("Ref Integration time:", ref_tint)
+        print("Ref planet counts:", ref_plan_CR*tot_tint)
+        print("Ref Disk counts:", (ref_disk_CR1 + ref_disk_CR2)*tot_tint)
+        print("Ref Star counts:", (ref_star_CR1 + ref_star_CR2)*tot_tint)
+        print("Ref Integration time:", tot_tint)
         
-        print("SNR calculation:", (sci_plan_CR*sci_tint +ref_plan_CR*ref_tint) / np.sqrt(sci_plan_CR*sci_tint +ref_plan_CR*ref_tint + sci_disk_CR*sci_tint +sci_star_CR*sci_tint + ref_disk_CR*ref_tint + ref_star_CR*ref_tint) )
-        assert False
-    sci_planet_counts, ref_planet_counts = sci_plan_CR*sci_tint, ref_plan_CR*ref_tint
-
-    science_image = (sci_plan_im + sci_disk_im + sci_star_im) * sci_tint
-    reference_image = (ref_plan_im + ref_disk_im + ref_star_im) * ref_tint
+        if planet_noise:
+            SNR_calc = (sci_plan_CR*tot_tint +ref_plan_CR*tot_tint) / np.sqrt((sci_disk_CR1 + sci_disk_CR2 + 
+                                                                               ref_disk_CR1 + ref_disk_CR2 + 
+                                                                               sci_star_CR1 + sci_star_CR2 + 
+                                                                               ref_star_CR1 + ref_star_CR2 + 
+                                                                               sci_plan_CR + ref_plan_CR)*tot_tint) 
+        else:
+            SNR_calc = (sci_plan_CR*tot_tint +ref_plan_CR*tot_tint) / np.sqrt((sci_disk_CR1 + sci_disk_CR2 + 
+                                                                               ref_disk_CR1 + ref_disk_CR2 + 
+                                                                               sci_star_CR1 + sci_star_CR2 + 
+                                                                               ref_star_CR1 + ref_star_CR2)*tot_tint) 
+        print("SNR calculation:", SNR_calc)
+        
+    sci_planet_counts, ref_planet_counts = sci_plan_CR*tot_tint, ref_plan_CR*tot_tint
+    
+    science_image = (sci_plan_im + sci_disk_im + sci_star_im) * tot_tint
+    reference_image = (ref_plan_im + ref_disk_im + ref_star_im) * tot_tint
     
     if ~planet_noise:
-        science_poisson = np.random.poisson((sci_disk_im + sci_star_im) * sci_tint)
-        reference_poisson = np.random.poisson((ref_disk_im + ref_star_im) * ref_tint)
+        science_poisson = np.random.poisson((sci_disk_im + sci_star_im) * tot_tint)
+        reference_poisson = np.random.poisson((ref_disk_im + ref_star_im) * tot_tint)
     elif planet_noise:
-        science_poisson = np.random.poisson((sci_disk_im + sci_star_im + sci_plan_im) * sci_tint)
-        reference_poisson = np.random.poisson((ref_disk_im + ref_star_im + ref_plan_im) * ref_tint)
+        science_poisson = np.random.poisson((sci_disk_im + sci_star_im + sci_plan_im) * tot_tint)
+        reference_poisson = np.random.poisson((ref_disk_im + ref_star_im + ref_plan_im) * tot_tint)
     
     
-
+    
     if add_noise:
         science_image += science_poisson
         reference_image += reference_poisson
     
     tot_noise_counts = tot_noise_CR*tot_tint
     tot_noise_counts_out = tot_noise_CR_out*tot_tint
+    
 
     return science_image, reference_image, sci_planet_counts, ref_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
 
@@ -383,9 +434,10 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     
     # define a location outside of the resonant ring
     if "LUVOIR-A" in im_dir:
-        displacement = 20
+        out_loc = 90
     elif "LUVOIR-B" in im_dir:
-        displacement = 10
+        out_loc = 80
+    displacement = out_loc - sci_plan_j
     sci_out_i = sci_plan_i 
     sci_out_j = sci_plan_j + displacement
     
@@ -492,7 +544,6 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         print("Ref Integration time:", ref_tint)
         
         print("SNR calculation:", (sci_plan_CR*sci_tint) / np.sqrt(sci_plan_CR*sci_tint + sci_disk_CR*sci_tint +sci_star_CR*sci_tint + ref_star_CR*ref_tint) )
-        assert False
         
     sci_planet_counts = sci_plan_CR*sci_tint
 
@@ -609,10 +660,31 @@ def region_circle(im, signal_i, signal_j, aperture, ap_sz, opposite=False):
     
     return noise_region
 
-def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angle, opposite=False):
+def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angle, tele, disk_region, region_len_r=None, opposite=False):
     
     imsz, imsz = sub_im.shape
     imctr = (imsz-1)/2
+    if region_len_r is None:
+        if tele == "LUVA":
+            if disk_region == "struct":
+                lower_dist = 17
+                upper_dist = 25
+            elif disk_region == "smooth":
+                lower_dist = 36
+                upper_dist = 44
+        elif tele == "LUVB":
+            if disk_region == "struct":
+                lower_dist = 10
+                upper_dist = 18
+            elif disk_region == "smooth":
+                lower_dist = 26
+                upper_dist = 34
+    else:
+        sig_dist_frm_ctr = np.sqrt((signal_i - imctr)**2 + (signal_j - imctr)**2)
+        lower_dist = sig_dist_frm_ctr - region_len_r
+        upper_dist = sig_dist_frm_ctr + region_len_r
+        #print("lower, upper:", lower_dist, upper_dist)
+        
 
     
     noise_mask = np.zeros_like(sub_im)
@@ -623,17 +695,19 @@ def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angl
     upper_ang = sig_rot+angle/2
     
     
-    sig_dist = np.sqrt((signal_i-imctr)**2 + (signal_j-imctr)**2) 
-    
-    lower_dist = sig_dist - (ap_sz*2+1)
-    upper_dist = sig_dist + (ap_sz*2+1)
+# =============================================================================
+#     sig_dist = np.sqrt((signal_i-imctr)**2 + (signal_j-imctr)**2) 
+#     
+#     lower_dist = sig_dist - (ap_sz*2+1)
+#     upper_dist = sig_dist + (ap_sz*2+1)
+# =============================================================================
     
     
     for i in range(imsz):
         for j in range(imsz):
             ang = rotation_map[i,j]
             dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
-            if ang >= lower_ang and ang <= upper_ang and dist >= lower_dist and dist < upper_dist:
+            if ang >= lower_ang and ang <= upper_ang and dist >= lower_dist and dist <= upper_dist:
                 noise_mask[i, j] = 1
     
     if opposite:
@@ -649,6 +723,29 @@ def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angl
     
     return noise_region
 
+def region_dynasquare(sub_im, signal_i, signal_j, aperture, ap_sz, width, height, opposite=False):
+    
+    imsz, imsz = sub_im.shape            
+
+    noise_mask = np.zeros_like(sub_im)
+    
+    noise_mask[signal_i-width:signal_i+width+1, signal_j-width:signal_j+width+1] = 1
+    
+    
+    if opposite:
+        pass
+    else:
+        noise_mask[signal_i-ap_sz:signal_i+ap_sz+1, signal_j-ap_sz:signal_j+ap_sz+1] = ~aperture
+
+
+    zero_inds = np.where(noise_mask == 0.)
+    noise_mask[zero_inds] = np.nan
+    
+    noise_region = sub_im * noise_mask
+    
+    return noise_region
+
+
 def get_opposite_wedge_region(wedge_region, im, signal_i_opp, signal_j_opp, ap_sz):
     
     imsz, imsz = wedge_region.shape
@@ -656,6 +753,28 @@ def get_opposite_wedge_region(wedge_region, im, signal_i_opp, signal_j_opp, ap_s
 
     region_inds = ~np.isnan(wedge_region)
     opp_region = np.zeros_like(wedge_region)
+    for i in range(imsz):
+        for j in range(imsz):
+            if region_inds[i,j]:
+                i_opp = int(imctr - (i-imctr))
+                j_opp = int(imctr - (j-imctr))
+                opp_region[i_opp, j_opp] = 1
+    opp_region[signal_i_opp-ap_sz:signal_i_opp+ap_sz+1, signal_j_opp-ap_sz:signal_j_opp+ap_sz+1] = 1
+    
+    zero_inds = np.where(opp_region == 0.)
+    opp_region[zero_inds] = np.nan
+    
+    opp_noise_region = im * opp_region
+    
+    return opp_noise_region
+
+def get_opposite_dynasquare_region(dynasquare_region, im, signal_i_opp, signal_j_opp, ap_sz):
+    
+    imsz, imsz = dynasquare_region.shape
+    imctr = (imsz-1)/2
+
+    region_inds = ~np.isnan(dynasquare_region)
+    opp_region = np.zeros_like(dynasquare_region)
     for i in range(imsz):
         for j in range(imsz):
             if region_inds[i,j]:
@@ -744,19 +863,21 @@ def r2_correction(noise_region):
                 val = noise_region[i,j]
                 dists.append(dist)
                 vals.append(val)
+                
     #sig_dist = np.sqrt((sig_i-imctr)**2 + (sig_j-imctr)**2) 
     
     
     dists = np.array(dists)
 
     coeffs = np.polyfit(dists, vals, 2)
-    #x_arr = np.arange(np.min(dists), np.max(dists), 0.01)
-    #y_fit = coeffs[2] + coeffs[1]*x_arr + coeffs[0]*x_arr**2 
 # =============================================================================
+#     x_arr = np.arange(np.min(dists), np.max(dists), 0.01)
+#     y_fit = coeffs[2] + coeffs[1]*x_arr + coeffs[0]*x_arr**2 
 #     plt.figure()
 #     plt.scatter(dists, vals)
-#     plt.axvline(sig_dist, color="k")
+#     #plt.axvline(sig_dist, color="k")
 #     plt.plot(x_arr, y_fit, color="C1")
+#     assert False
 # =============================================================================
 
     r2_corrected_region = np.copy(noise_region)
@@ -952,12 +1073,29 @@ def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
 
 def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                          sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                         aperture, ap_sz, rotation_map, corrections=True):
+                         aperture, ap_sz, rotation_map, tele, disk_region, nr_angle=None, region_len_r=None, corrections=True, verbose=False):
+    
+    if nr_angle is None:
+        # fix the nr angle such that we sample 30 apertures
+        if tele == "LUVA":
+            if disk_region == "struct":
+                nr_angle = 22
+            elif disk_region == "smooth":
+                nr_angle = 11.5
+        elif tele == "LUVB":
+            if disk_region == "struct":
+                nr_angle = 32.
+            elif disk_region == "smooth":
+                nr_angle = 15.5
+    else:
+        #print("NR angle:", nr_angle)
+        pass
+        
     ## define noise region
     ### wedge  region
-    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region, region_len_r=region_len_r)
     nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-    nr_wedge_ref = region_wedge(im, ref_signal_i, ref_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_ref = region_wedge(im, ref_signal_i, ref_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region, region_len_r=region_len_r)
     nr_wedge_ref_opp = get_opposite_wedge_region(nr_wedge_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
 
     if corrections:
@@ -983,6 +1121,8 @@ def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_si
     tot_sci_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_sci, counts_per_ap_nr_wedge_sci_opp))
     tot_ref_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_ref, counts_per_ap_nr_wedge_ref_opp))
     
+    
+    
     ##### check if sci and ref regions have equal number of apertures sampled
     if len(tot_sci_ap_counts_wedge) == len(tot_ref_ap_counts_wedge):
         pass
@@ -996,22 +1136,147 @@ def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_si
         assert False, "Something is wrong"
     
     tot_noise_counts_wedge = tot_sci_ap_counts_wedge + -1 * tot_ref_ap_counts_wedge
-    
+    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
     #sigma clip
     tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge_sgcl)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge)
     
-    #print("Apertures sampled:", len(tot_noise_counts_wedge))
+    if verbose:
+        print("Apertures sampled:", len(tot_noise_counts_wedge))
     #print("Measured noise wedge", measured_noise_wedge)
     
     return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp, nr_wedge_ref, nr_wedge_ref_opp
 
+def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
+                                 sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
+                                 aperture, ap_sz, width, height, corrections=True, verbose=False):
+    
+        
+    ## define noise region
+    ### dynasquare  region
+    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
+    nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+    nr_dynasquare_ref = region_dynasquare(im, ref_signal_i, ref_signal_j, aperture, ap_sz, width, height)
+    nr_dynasquare_ref_opp = get_opposite_dynasquare_region(nr_dynasquare_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
+
+# =============================================================================
+#     if corrections:
+#         #### do an r^2 correction on the wedge  region
+#         nr_wedge_sci = r2_correction(nr_wedge_sci)
+#         nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
+#         nr_wedge_ref = r2_correction(nr_wedge_ref)
+#         nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
+#         
+#         #### do an azimuthal correction on the wedge  region
+#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
+#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
+# =============================================================================
+    
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_ref_opp, ap_coords_nr_dynasquare_ref_opp = sum_apertures_in_region(nr_dynasquare_ref_opp, aperture, ap_sz)
+    
+    
+    tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
+    tot_ref_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_ref, counts_per_ap_nr_dynasquare_ref_opp))
+    
+    
+    
+    ##### check if sci and ref regions have equal number of apertures sampled
+    if len(tot_sci_ap_counts_dynasquare) == len(tot_ref_ap_counts_dynasquare):
+        pass
+    elif len(tot_sci_ap_counts_dynasquare) > len(tot_ref_ap_counts_dynasquare):
+        num_inds_to_cut = len(tot_sci_ap_counts_dynasquare) - len(tot_ref_ap_counts_dynasquare)
+        tot_sci_ap_counts_dynasquare = tot_sci_ap_counts_dynasquare[:-num_inds_to_cut]
+    elif len(tot_sci_ap_counts_dynasquare) < len(tot_ref_ap_counts_dynasquare):
+        num_inds_to_cut = len(tot_ref_ap_counts_dynasquare) - len(tot_sci_ap_counts_dynasquare)
+        tot_ref_ap_counts_dynasquare = tot_ref_ap_counts_dynasquare[:-num_inds_to_cut]
+    else:
+        assert False, "Something is wrong"
+    
+    tot_noise_counts_dynasquare = tot_sci_ap_counts_dynasquare + -1 * tot_ref_ap_counts_dynasquare
+    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
+    #sigma clip
+    tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
+    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare)
+    
+    if verbose:
+        print("Apertures sampled:", len(tot_noise_counts_dynasquare))
+    #print("Measured noise wedge", measured_noise_wedge)
+    
+    return measured_noise_dynasquare, nr_dynasquare_sci, nr_dynasquare_sci_opp, nr_dynasquare_ref, nr_dynasquare_ref_opp
+
+def measure_noise_dynasquare_RDI(im, sci_signal_i, sci_signal_j,
+                                 sci_signal_i_opp, sci_signal_j_opp,
+                                 aperture, ap_sz, width, height, corrections=True, verbose=False):
+    
+        
+    ## define noise region
+    ### dynasquare  region
+    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
+    nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+
+# =============================================================================
+#     if corrections:
+#         #### do an r^2 correction on the wedge  region
+#         nr_wedge_sci = r2_correction(nr_wedge_sci)
+#         nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
+#         nr_wedge_ref = r2_correction(nr_wedge_ref)
+#         nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
+#         
+#         #### do an azimuthal correction on the wedge  region
+#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
+#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
+# =============================================================================
+    
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
+    
+    
+    tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
+    
+    
+    
+    
+    
+    tot_noise_counts_dynasquare = tot_sci_ap_counts_dynasquare 
+    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
+    #sigma clip
+    tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
+    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare)
+    
+    if verbose:
+        print("Apertures sampled:", len(tot_noise_counts_dynasquare))
+    #print("Measured noise wedge", measured_noise_wedge)
+    
+    return measured_noise_dynasquare, nr_dynasquare_sci, nr_dynasquare_sci_opp
+
 def measure_noise_wedge_RDI(im, sci_signal_i, sci_signal_j,
                          sci_signal_i_opp, sci_signal_j_opp,
-                         aperture, ap_sz, rotation_map, corrections=True):
+                         aperture, ap_sz, rotation_map, tele, disk_region, corrections=True):
+    
+    # fix the nr angle such that we sample 30 apertures
+    if tele == "LUVA":
+        if disk_region == "struct":
+            nr_angle = 28.
+        elif disk_region == "smooth":
+            nr_angle = 15.9
+    elif tele == "LUVB":
+        if disk_region == "struct":
+            nr_angle = 40.
+        elif disk_region == "smooth":
+            nr_angle = 20.5
+    
     ## define noise region
     ### wedge  region
-    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, 25.)
+    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region)
     nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
 
     if corrections:
@@ -1033,9 +1298,9 @@ def measure_noise_wedge_RDI(im, sci_signal_i, sci_signal_j,
     
     #sigma clip
     tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge_sgcl)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge)
     
-    #print("Apertures sampled:", len(tot_noise_counts_wedge))
+    print("Apertures sampled:", len(tot_noise_counts_wedge))
     #print("Measured noise wedge", measured_noise_wedge)
     
     return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp
