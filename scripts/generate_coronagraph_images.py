@@ -302,7 +302,7 @@ if nofwdscat:
 
 
 
-def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=None):
+def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=None, planet_outside=False):
     
    
 
@@ -325,6 +325,7 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_ang
 
     
     tag = "scatteredlight-Mp_{}-ap_{}-incl_{}-longitude_{}-exozodis_{}-distance_{}".format(Mp, ap, incl, long, zodis, dist)
+
     if nofwdscat:
         tag = "no_fwd_scatt-Mp_{}-ap_{}-incl_{}-longitude_{}-exozodis_{}-distance_{}".format(Mp, ap, incl, long, zodis, dist)
     
@@ -417,7 +418,6 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_ang
     fstar = np.array([[[fstar_interp]]])
     Nplanets = 1
     xyplanet = np.array([[[x_plan, y_plan]]])
-    fplanet = np.array([[[4.44285286e-09]]])
     disk = np.array([[downbinned_disk]]) * fstar
     Nwave = 1
     angdiam = 0.465 # angular diameter of the star [mas]
@@ -439,6 +439,8 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_ang
         asdf = n % x > x // 2
         return n + (-1)**(1 - asdf) * abs(x * asdf - n % x)
     planet_pos_mas_forced = nearest(planet_pos_mas_actual.value, imsc_final.value)
+    if planet_outside:
+        planet_pos_mas_forced *= 2.
 
 #     planet_pos_mas_forced = round(planet_pos_mas_actual.value * imsc_final.value) / imsc_final.value
     #planet_pos_mas_forced = lamD_to_mas(planet_pos_lamD_forced, wave[0]*u.um, diam*u.m)
@@ -453,6 +455,11 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_ang
     
 
     
+    fplanet = np.array([[[4.44285286e-09]]])
+    if planet_outside:
+        fplanet  = fplanet * (x_plan / x_plan_forced)**2
+        print("fplanet:", fplanet)
+
     
     coro.scene = scene(time, Ntime, pixscale, xystar, fstar, Nplanets, xyplanet, fplanet, disk, wave, Nwave, angdiam)
     
@@ -496,6 +503,8 @@ def generate_ims(tele, Mp, ap, incl, long, zodis, dist, wavelength, set_roll_ang
     coro.planet_pos_lamD = planet_pos_lamD
     
     tag += "-rang_{}".format(round(phi_roll.value)) 
+    if planet_outside:
+        tag += "-planet_outside"
     coro.name = tag
     
     
@@ -826,15 +835,15 @@ dist = "10"
 zodis = "1"
 wavelength=0.5
 
-coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength)
-
+coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength, planet_outside=True, set_roll_angle=90.)
 
 do_this = True
 wavelength=0.5
 if do_this:
     Mp = "1.0"
     ap = "1.0"
-    set_roll_angle = None
+    set_roll_angle = 90.
+    planet_outside = True
     
     incl_arr = ["00", "30", "60", "90"]
     long_arr = ["00", "30"][:1]
@@ -849,7 +858,7 @@ if do_this:
                 for zodis in zodi_arr:
                     #pass
                     print("Running Mp={}, ap={}, incl={}, long={}, dist={}, zodi={}".format(Mp, ap, incl, long, dist, zodis))
-                    coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=set_roll_angle)
+                    coro, det = generate_ims("LUVOIR-B", Mp, ap, incl, long, zodis, dist, wavelength, set_roll_angle=set_roll_angle, planet_outside=planet_outside)
 
 
 assert False

@@ -56,7 +56,7 @@ if tele == "LUVB":
     imsz = sci_im_fits[0].header["IMSZ"] # pix
     diam = sci_im_fits[0].header["DIAM"]
     wave = sci_im_fits["WAVE"].data[0]
-    rotation_map, valid_mask, radius_map = ezf.construct_maps(sci_im, imsc, diam, IWA_lamD=2.5, OWA_lamD=13., plotting=False)
+    rotation_map, valid_mask, radius_map = ezf.construct_maps(sci_im, imsc, diam, IWA_lamD=2.5, OWA_lamD=22., plotting=False)
 elif tele == "LUVA":
     # load an example image
     im_dir = "/Users/mcurr/PACKAGES/coroSims/LUVOIR-A_outputs/"
