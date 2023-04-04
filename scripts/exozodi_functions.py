@@ -1388,15 +1388,14 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
 # =============================================================================
     ref_nr_median = np.nanmedian(ref_noise_vals)
     
+
     
     sci_sig = sub_im[sci_signal_mask]
     ref_sig = sub_im[ref_signal_mask]
     
     # subtract off background
-# =============================================================================
-#     sci_sig -= sci_nr_median
-#     ref_sig -= ref_nr_median
-# =============================================================================
+    sci_sig -= sci_nr_median
+    ref_sig -= ref_nr_median
     
     tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
     

@@ -449,11 +449,16 @@ def process(config):
         
         # measure signal
         if DI == "ADI":
-            signal_before_hipass = ezf.measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-            signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
+            signal_before_hipass = ezf.measure_signal_ADI(sub_im, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
+            signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
+# =============================================================================
+#             signal_before_hipass = ezf.measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
+#             signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
+# =============================================================================
+    
         elif DI == "RDI":
-            signal_before_hipass = ezf.measure_signal_RDI(sub_im, noise_map_sci, sci_signal_i, sci_signal_j, aperture)
-            signal_after_hipass = ezf.measure_signal_RDI(sub_im_hipass, noise_map_sci, sci_signal_i, sci_signal_j, aperture)
+            signal_before_hipass = ezf.measure_signal_RDI(sub_im, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
+            signal_after_hipass = ezf.measure_signal_RDI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
             
         
         
@@ -562,7 +567,6 @@ def process(config):
         print("Median measured/expected noise after hipass outside:", median_measured_noise_after_hipass_out/expected_noise_out)
         #assert False
 
-    print(median_measured_noise_after_hipass_out / expected_noise_out)
     return_arr = np.array([uniform_disk, ap_sz, im_sz/filter_sz, int(incl), int(zodis), 
                            median_SNR_before_hipass, median_SNR_after_hipass,
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
@@ -571,7 +575,7 @@ def process(config):
                            median_measured_signal_before_hipass, median_measured_signal_after_hipass])
     
     end_time = time.time()
-    print("Time elapsed for process: {} s".format(round(end_time - start_time, 2)))
+    #print("Time elapsed for process: {} s".format(round(end_time - start_time, 2)))
     return return_arr
 
 
@@ -582,7 +586,7 @@ if parallel == False:
     data = []
     
     configs = [([1, 10, "00", "1", "uniform"])]
-    configs = [([1, 1/101., "00", "1", "model"])]
+    configs = [([1, 101/101., "60", "50", "model"])]
     for config in configs:
         
         data_arr  = process(config)
