@@ -101,17 +101,20 @@ def process(config):
         uniform_disk = False
     else:
         assert False, "disk type not recognized"
-    print(hw_df.keys())
+        
     # get height and width:
     unif_bool = hw_df["uniform_disk"].isin([int(uniform_disk)])
     ap_sz_bool = hw_df["ap_sz"].isin([float(ap_sz)])
-    filter_bool = hw_df["filter_sz_pix"].isin([im_sz/filter_sz])
+    filters_ints = hw_df["filter_sz_pix"].values
+    filters_ints = np.rint(filters_ints).astype(int)
+    filter_bool = (filters_ints == int(im_sz/filter_sz))
     incl_bool =  hw_df["incl"].isin([float(incl)])
     zodis_bool = hw_df["zodis"].isin([float(zodis)])
     tot_bool = unif_bool & ap_sz_bool & filter_bool & incl_bool & zodis_bool
     
     height = int(hw_df["height"][tot_bool].values[0])
     width = int(hw_df["width"][tot_bool].values[0])
+    
 
     
     
@@ -533,7 +536,7 @@ def process(config):
 #                 convergence_counter = 0
 # =============================================================================
 
-        if iterations == 10:
+        if iterations == 500:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
@@ -582,7 +585,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 10, "00", "1", "uniform"])]
-    configs = [([1, 101/101., "60", "20", "model"])]
+    #configs = [([1, 101/101., "60", "20", "model"])]
     for config in configs:
         
         data_arr  = process(config)
