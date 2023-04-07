@@ -2,7 +2,7 @@ import numpy as np
 import astropy.io.fits as pyfits
 import astropy.units as u
 import matplotlib.pyplot as plt
-from scipy.ndimage import zoom, shift
+from scipy.ndimage import zoom, shift, rotate
 from scipy.interpolate import NearestNDInterpolator
 
 def plot_im(im, signal_i, signal_j, log=False):
@@ -729,7 +729,7 @@ def region_dynasquare(sub_im, signal_i, signal_j, aperture, ap_sz, width, height
 
     noise_mask = np.zeros_like(sub_im)
     
-    noise_mask[signal_i-width:signal_i+width+1, signal_j-width:signal_j+width+1] = 1
+    noise_mask[signal_i-width:signal_i+width+1, signal_j-height:signal_j+height+1] = 1
     
     
     if opposite:
@@ -1147,18 +1147,39 @@ def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_si
     
     return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp, nr_wedge_ref, nr_wedge_ref_opp
 
+def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle):
+    
+    region_ref = ~np.isnan(region_sci)
+    region_ref = region_ref.astype(float)
+    region_ref[sci_signal_i-ap_sz:sci_signal_i+ap_sz+1, sci_signal_j-ap_sz:sci_signal_j+ap_sz+1] = 1
+    
+    region_ref = rotate(region_ref, -roll_angle, order=0, reshape=False)
+    
+    region_ref[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
+    
+    zero_inds = np.where(region_ref == 0)
+    region_ref[zero_inds] = np.nan
+    
+    region_ref = region_ref * im
+    
+    return region_ref
+    
+    
+
 def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
                                  sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                 aperture, ap_sz, width, height, corrections=True, verbose=False):
+                                 aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
     
         
     ## define noise region
     ### dynasquare  region
     nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
-    nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-    nr_dynasquare_ref = region_dynasquare(im, ref_signal_i, ref_signal_j, aperture, ap_sz, width, height)
-    nr_dynasquare_ref_opp = get_opposite_dynasquare_region(nr_dynasquare_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
-
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle)
+    
+    #nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+    #nr_dynasquare_ref_opp = get_opposite_dynasquare_region(nr_dynasquare_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
+    nr_dynasquare_sci_opp = np.nan * np.ones_like(nr_dynasquare_sci)
+    nr_dynasquare_ref_opp = np.nan * np.ones_like(nr_dynasquare_ref)
 # =============================================================================
 #     if corrections:
 #         #### do an r^2 correction on the wedge  region
@@ -1176,13 +1197,16 @@ def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, r
     
     ## measure noise
     counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
-    counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
+    #counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
     counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
-    counts_per_ap_nr_dynasquare_ref_opp, ap_coords_nr_dynasquare_ref_opp = sum_apertures_in_region(nr_dynasquare_ref_opp, aperture, ap_sz)
+    #counts_per_ap_nr_dynasquare_ref_opp, ap_coords_nr_dynasquare_ref_opp = sum_apertures_in_region(nr_dynasquare_ref_opp, aperture, ap_sz)
     
     
-    tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
-    tot_ref_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_ref, counts_per_ap_nr_dynasquare_ref_opp))
+    #tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
+    #tot_ref_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_ref, counts_per_ap_nr_dynasquare_ref_opp))
+    
+    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
+    tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref
     
     
     
@@ -1206,20 +1230,21 @@ def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, r
     
     if verbose:
         print("Apertures sampled:", len(tot_noise_counts_dynasquare))
+
     #print("Measured noise wedge", measured_noise_wedge)
     
     return measured_noise_dynasquare, nr_dynasquare_sci, nr_dynasquare_sci_opp, nr_dynasquare_ref, nr_dynasquare_ref_opp
 
 def measure_noise_dynasquare_RDI(im, sci_signal_i, sci_signal_j,
                                  sci_signal_i_opp, sci_signal_j_opp,
-                                 aperture, ap_sz, width, height, corrections=True, verbose=False):
+                                 aperture, ap_sz, width, height,  corrections=True, verbose=False):
     
         
     ## define noise region
     ### dynasquare  region
     nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
-    nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-
+    #nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
+    nr_dynasquare_sci_opp = np.nan * np.ones_like(nr_dynasquare_sci)
 # =============================================================================
 #     if corrections:
 #         #### do an r^2 correction on the wedge  region
@@ -1237,11 +1262,12 @@ def measure_noise_dynasquare_RDI(im, sci_signal_i, sci_signal_j,
     
     ## measure noise
     counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
-    counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
+    #counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
     
     
-    tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
-    
+    #tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
+    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
+
     
     
     

@@ -13,21 +13,28 @@ add_noise = True
 add_star = True
 planet_noise = True
 r2_disk = False
-planet_outside = False
+
 
 try:
     tele = str(sys.argv[1])
     DI = str(sys.argv[2])
     noise_region = str(sys.argv[3])
+    planloc = str(sys.argv[4])
 except IndexError:
     
     tele = "LUVA"
     DI = "ADI"
     noise_region = "dynasquare"
+    planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
 
 matched_filter_dir = "../matched_filter_library/"
 
+if planloc == "planin":
+    planet_outside = False
+elif planloc == "planout":
+    planet_outside = True
+    
 
 if tele == "LUVA":
     planet_pos_lamD = 10.5
@@ -81,12 +88,19 @@ for ap_sz in ap_sz_arr:
                 configs.append([ap_sz, filter_sz, incl, zodis, "model"])
 
 
-# load height/width file
-hw_fl = "opt_hw_{}_{}".format(tele, DI)
-if planet_outside:
-    hw_fl += "_planout"
-hw_fl+= ".dat"
-hw_df = pd.read_csv(hw_fl, sep=" ", header=0)
+# =============================================================================
+# # load height/width file
+# hw_fl = "opt_hw_{}_{}".format(tele, DI)
+# if planet_outside:
+#     hw_fl += "_planout"
+# hw_fl+= ".dat"
+# hw_df = pd.read_csv(hw_fl, sep=" ", header=0)
+# =============================================================================
+
+
+# define height and width of noise region:
+height = 3
+width = 2
 
 import time
 def process(config):
@@ -102,18 +116,20 @@ def process(config):
     else:
         assert False, "disk type not recognized"
         
-    # get height and width:
-    unif_bool = hw_df["uniform_disk"].isin([int(uniform_disk)])
-    ap_sz_bool = hw_df["ap_sz"].isin([float(ap_sz)])
-    filters_ints = hw_df["filter_sz_pix"].values
-    filters_ints = np.rint(filters_ints).astype(int)
-    filter_bool = (filters_ints == int(im_sz/filter_sz))
-    incl_bool =  hw_df["incl"].isin([float(incl)])
-    zodis_bool = hw_df["zodis"].isin([float(zodis)])
-    tot_bool = unif_bool & ap_sz_bool & filter_bool & incl_bool & zodis_bool
-    
-    height = int(hw_df["height"][tot_bool].values[0])
-    width = int(hw_df["width"][tot_bool].values[0])
+# =============================================================================
+#     # get height and width:
+#     unif_bool = hw_df["uniform_disk"].isin([int(uniform_disk)])
+#     ap_sz_bool = hw_df["ap_sz"].isin([float(ap_sz)])
+#     filters_ints = hw_df["filter_sz_pix"].values
+#     filters_ints = np.rint(filters_ints).astype(int)
+#     filter_bool = (filters_ints == int(im_sz/filter_sz))
+#     incl_bool =  hw_df["incl"].isin([float(incl)])
+#     zodis_bool = hw_df["zodis"].isin([float(zodis)])
+#     tot_bool = unif_bool & ap_sz_bool & filter_bool & incl_bool & zodis_bool
+#     
+#     height = int(hw_df["height"][tot_bool].values[0])
+#     width = int(hw_df["width"][tot_bool].values[0])
+# =============================================================================
     
 
     
@@ -379,28 +395,28 @@ def process(config):
                     nr_dynasquare_sci, nr_dynasquare_sci_opp, \
                     nr_dynasquare_ref, nr_dynasquare_ref_opp = ezf.measure_noise_dynasquare_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
                                                                                  sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass, \
                     nr_dynasquare_sci, nr_dynasquare_sci_opp, \
                     nr_dynasquare_ref, nr_dynasquare_ref_opp = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
                                                                                  sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_before_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
                     nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out = ezf.measure_noise_dynasquare_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
                                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
                     nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
                                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 
@@ -412,25 +428,25 @@ def process(config):
                 measured_noise_before_hipass, \
                     nr_dynasquare_sci, nr_dynasquare_sci_opp = ezf.measure_noise_dynasquare_RDI(sub_im, sci_signal_i, sci_signal_j,
                                                                                  sci_signal_i_opp, sci_signal_j_opp, 
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass, \
                     nr_dynasquare_sci, nr_dynasquare_sci_opp = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
                                                                                  sci_signal_i_opp, sci_signal_j_opp,
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_before_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out = ezf.measure_noise_dynasquare_RDI(sub_im, sci_out_i, sci_out_j, 
                                                                                  sci_out_i_opp, sci_out_j_opp, 
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_out_i, sci_out_j,
                                                                                  sci_out_i_opp, sci_out_j_opp, 
-                                                                                 aperture, ap_sz, width, height, corrections=False, verbose=False)
+                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
                
                 
                 
@@ -450,11 +466,7 @@ def process(config):
         if DI == "ADI":
             signal_before_hipass = ezf.measure_signal_ADI(sub_im, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
             signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-# =============================================================================
-#             signal_before_hipass = ezf.measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-#             signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-# =============================================================================
-    
+
         elif DI == "RDI":
             signal_before_hipass = ezf.measure_signal_RDI(sub_im, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
             signal_after_hipass = ezf.measure_signal_RDI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
@@ -504,37 +516,6 @@ def process(config):
                 
         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
         
-# =============================================================================
-#         if iterations > 1:
-#             # compute fractional difference of medians
-#             old_median = np.median(cc_SNRs_after_hipass[:-1])
-#             new_median = np.median(cc_SNRs_after_hipass)
-#             
-#             frac_diff_med = np.abs((new_median - old_median) / old_median)
-#             #print("med:",old_median, new_median, frac_diff_med)
-#             
-#             old_std = np.std(cc_SNRs_after_hipass[:-1])
-#             new_std = np.std(cc_SNRs_after_hipass)
-#             frac_diff_std = np.abs((new_std - old_std) / old_std)
-#             #print("std:", old_std, new_std, frac_diff_std)
-#             
-#             frac_diff_med_arr.append(frac_diff_med)
-#             frac_diff_std_arr.append(frac_diff_std)
-# 
-#         if iterations > 500:
-#             
-# 
-#             if (frac_diff_med < 0.01) and (frac_diff_std < 0.01):
-#                 #print("Converged")
-#                 convergence_counter += 1
-#                 if convergence_counter == 10:
-#                     print("Converged")
-#                     converged = True
-#                     
-#             else:
-#                 # reset the convergence counter
-#                 convergence_counter = 0
-# =============================================================================
 
         if iterations == 500:
             print("NOT CONVERGED: Iteration limit reached.")
@@ -578,14 +559,14 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
     data = []
     
     #configs = [([1, 10, "00", "1", "uniform"])]
-    #configs = [([1, 101/101., "60", "20", "model"])]
+    configs = [([1, 101/101., "30", "20", "model"])]
     for config in configs:
         
         data_arr  = process(config)
