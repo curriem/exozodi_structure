@@ -551,8 +551,14 @@ def process(config):
     median_measured_signal_before_hipass = np.median(measured_signal_before_hipass_arr)
     median_measured_signal_after_hipass = np.median(measured_signal_after_hipass_arr)
 
+    std_SNR_after_hipass = np.std(SNR_after_hipass_arr)
+    std_cc_SNR_after_hipass = np.std(cc_SNRs_after_hipass)
+    std_noise_after_hipass = np.std(measured_noise_after_hipass_arr)
+    std_noise_after_hipass_out = np.std(measured_noise_after_hipass_out_arr)
+    std_signal_after_hipass = np.std(measured_signal_after_hipass_arr)
+
     
-    verbose = True
+    verbose = False
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
@@ -571,7 +577,9 @@ def process(config):
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out,
-                           median_measured_signal_before_hipass, median_measured_signal_after_hipass])
+                           median_measured_signal_before_hipass, median_measured_signal_after_hipass, 
+                           std_SNR_after_hipass, std_cc_SNR_after_hipass, std_noise_after_hipass, 
+                           std_noise_after_hipass_out, std_signal_after_hipass])
     
     end_time = time.time()
     #print("Time elapsed for process: {} s".format(round(end_time - start_time, 2)))
@@ -607,7 +615,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
-    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass"
+    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass std_SNR_after_hipass std_cc_SNR_after_hipass std_noise_after_hipass std_noise_after_hipass_out std_signal_after_hipass"
     save_fl = "data_{}_{}_{}".format(tele, DI, noise_region)
     if planet_outside:
         save_fl += "_planout"
