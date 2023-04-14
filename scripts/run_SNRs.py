@@ -392,28 +392,28 @@ def process(config):
             if DI == "ADI":
                 measured_noise_before_hipass, \
                     nr_dynasquare_sci, nr_dynasquare_sci_opp, \
-                    nr_dynasquare_ref, nr_dynasquare_ref_opp = ezf.measure_noise_dynasquare_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
+                    nr_dynasquare_ref, nr_dynasquare_ref_opp, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
                                                                                  sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
                                                                                  aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass, \
                     nr_dynasquare_sci, nr_dynasquare_sci_opp, \
-                    nr_dynasquare_ref, nr_dynasquare_ref_opp = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
+                    nr_dynasquare_ref, nr_dynasquare_ref_opp, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
                                                                                  sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
                                                                                  aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_before_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
-                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out = ezf.measure_noise_dynasquare_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
+                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
                                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
                                                                                  aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass_out, \
                     nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
-                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
+                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
                                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
                                                                                  aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
 
@@ -566,7 +566,7 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
