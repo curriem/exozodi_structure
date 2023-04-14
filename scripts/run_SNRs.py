@@ -73,12 +73,11 @@ longitude = "00"
 
 configs = []
 
-if planet_outside == False:
-    # do a uniform disk
-    for ap_sz in ap_sz_arr:
-        for filter_sz in filter_sz_arr_fourier:
-            for zodis in zodi_arr:
-                configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
+# do a uniform disk
+for ap_sz in ap_sz_arr:
+    for filter_sz in filter_sz_arr_fourier:
+        for zodis in zodi_arr:
+            configs.append([ap_sz, filter_sz, "00", zodis, "uniform"])
 
 # set up configs
 for ap_sz in ap_sz_arr:
@@ -567,7 +566,7 @@ def process(config):
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:
@@ -602,8 +601,4 @@ elif parallel == True:
         save_fl += "_planout"
     save_fl += ".dat"
     np.savetxt(save_fl, results, header=header, comments='')
-
-
-
-                
-                
+ 
