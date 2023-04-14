@@ -1230,7 +1230,6 @@ def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, r
     
     tot_noise_counts_dynasquare = tot_sci_ap_counts_dynasquare + -1 * tot_ref_ap_counts_dynasquare
     #tot_noise_counts_dynasquare = np.abs(tot_sci_ap_counts_dynasquare) +  np.abs(tot_ref_ap_counts_dynasquare)
-    
     #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
     #sigma clip
     tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
@@ -1439,9 +1438,7 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
     # subtract off background
     sci_sig -= sci_nr_median
     ref_sig -= ref_nr_median
-    
     tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
-    
     return np.abs(tot_sig)
 
 

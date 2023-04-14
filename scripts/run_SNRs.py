@@ -11,7 +11,7 @@ import pandas as pd
 roll_angle = 90.
 add_noise = True
 add_star = True
-planet_noise = True
+planet_noise = False
 r2_disk = False
 
 
@@ -23,7 +23,7 @@ try:
 except IndexError:
     
     tele = "LUVA"
-    DI = "ADI"
+    DI = "RDI"
     noise_region = "dynasquare"
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -425,25 +425,25 @@ def process(config):
                 
             elif DI == "RDI":
                 measured_noise_before_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp = ezf.measure_noise_dynasquare_RDI(sub_im, sci_signal_i, sci_signal_j,
+                    nr_dynasquare_sci, nr_dynasquare_sci_opp, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im, sci_signal_i, sci_signal_j,
                                                                                  sci_signal_i_opp, sci_signal_j_opp, 
                                                                                  aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
+                    nr_dynasquare_sci, nr_dynasquare_sci_opp, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
                                                                                  sci_signal_i_opp, sci_signal_j_opp,
                                                                                  aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_before_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out = ezf.measure_noise_dynasquare_RDI(sub_im, sci_out_i, sci_out_j, 
+                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im, sci_out_i, sci_out_j, 
                                                                                  sci_out_i_opp, sci_out_j_opp, 
                                                                                  aperture, ap_sz, height, width, corrections=False, verbose=False)
 
                 
                 measured_noise_after_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_out_i, sci_out_j,
+                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_out_i, sci_out_j,
                                                                                  sci_out_i_opp, sci_out_j_opp, 
                                                                                  aperture, ap_sz, height, width, corrections=False, verbose=False)
                
@@ -477,6 +477,7 @@ def process(config):
 
         SNR_before_hipass = signal_before_hipass / measured_noise_before_hipass
         SNR_after_hipass = signal_after_hipass / measured_noise_after_hipass
+        
         
         SNR_before_hipass_arr.append(SNR_before_hipass)
         SNR_after_hipass_arr.append(SNR_after_hipass)
@@ -573,7 +574,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 10, "00", "1", "uniform"])]
-    configs = [([1, 101/11., "00", "1", "model"])]
+    configs = [([1, 101/101., "00", "1", "model"])]
     for config in configs:
         
         data_arr  = process(config)
