@@ -538,7 +538,7 @@ def process(config):
     std_signal_after_hipass = np.std(measured_signal_after_hipass_arr)
 
     
-    verbose = True
+    verbose = False
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
