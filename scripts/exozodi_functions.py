@@ -522,6 +522,8 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     tot_noise_CR = sci_back_CR + ref_back_CR # ph/s
     tot_noise_CR_out = sci_back_CR_out + ref_back_CR_out # ph/s
     
+    tot_background_CR = np.copy(tot_noise_CR)
+    tot_background_CR_out = np.copy(tot_noise_CR_out)
     
     if planet_noise:
         tot_noise_CR += sci_plan_CR
@@ -565,8 +567,8 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         science_image += science_poisson
         reference_image += reference_poisson
     
-    tot_noise_counts = tot_noise_CR*tot_tint
-    tot_noise_counts_out = tot_noise_CR_out*tot_tint
+    tot_noise_counts = tot_background_CR*tot_tint
+    tot_noise_counts_out = tot_background_CR_out*tot_tint
 
     return science_image, reference_image, sci_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j)
 
