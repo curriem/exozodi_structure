@@ -99,8 +99,8 @@ for ap_sz in ap_sz_arr:
 
 
 # define height and width of noise region:
-height = 3
-width = 2
+height = 5
+width = 5
 
 import time
 def process(config):
@@ -517,7 +517,7 @@ def process(config):
         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
         
 
-        if iterations == 500:
+        if iterations == 100:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
@@ -539,7 +539,7 @@ def process(config):
     std_signal_after_hipass = np.std(measured_signal_after_hipass_arr)
 
     
-    verbose = False
+    verbose = True
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
@@ -574,7 +574,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 10, "00", "1", "uniform"])]
-    configs = [([1, 101/101., "30", "20", "model"])]
+    configs = [([1, 101/11., "00", "1", "model"])]
     for config in configs:
         
         data_arr  = process(config)
