@@ -842,8 +842,8 @@ def get_opp_coords(i, j, imctr):
 
 def sigma_clip(arr, thresh=3):
     # sigma clip
-    inds_higher = np.where(arr > np.median(arr) + thresh*np.std(arr))
-    inds_lower = np.where(arr < np.median(arr) - thresh*np.std(arr))
+    inds_higher = np.where(arr > np.median(arr) + thresh*np.std(arr, ddof=1))
+    inds_lower = np.where(arr < np.median(arr) - thresh*np.std(arr, ddof=1))
     arr[inds_higher] = np.nan
     arr[inds_lower] = np.nan
     
@@ -1014,7 +1014,7 @@ def measure_noise_circle_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_s
     #### sigma clip 
     tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
     
-    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl)
+    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl, ddof=1)
     
     #print("Apertures sampled:", len(tot_noise_counts_circle))
     #print("Measured noise circle", measured_noise_circle)
@@ -1039,7 +1039,7 @@ def measure_noise_circle_RDI(im, sci_signal_i, sci_signal_j,
     #### sigma clip 
     tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
     
-    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl)
+    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl, ddof=1)
     
     #print("Apertures sampled:", len(tot_noise_counts_circle))
     #print("Measured noise circle", measured_noise_circle)
@@ -1070,7 +1070,7 @@ def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     # sigma clip
     tot_noise_counts_ring_sgcl = sigma_clip(tot_noise_counts_ring)
     
-    measured_noise_ring = np.nanstd(tot_noise_counts_ring_sgcl)
+    measured_noise_ring = np.nanstd(tot_noise_counts_ring_sgcl, ddof=1)
     #print("Apertures sampled:", len(tot_noise_counts_ring))
     #print("Measured noise ring", measured_noise_ring)
     
@@ -1144,7 +1144,7 @@ def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_si
     #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
     #sigma clip
     tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge, ddof=1)
     
     if verbose:
         print("Apertures sampled:", len(tot_noise_counts_wedge))
@@ -1233,14 +1233,14 @@ def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, r
     #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
     #sigma clip
     tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
-    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare)
+    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare, ddof=1)
     
 # =============================================================================
 #     if len(tot_noise_counts_dynasquare) > 0:
 #         print(len(tot_noise_counts_dynasquare))
 #         print(tot_sci_ap_counts_dynasquare, tot_ref_ap_counts_dynasquare)
 #         print(tot_noise_counts_dynasquare)
-#         print(np.std(tot_noise_counts_dynasquare))
+#         print(np.std(tot_noise_counts_dynasquare, ddof=1))
 #         assert False
 # =============================================================================
     
@@ -1292,7 +1292,7 @@ def measure_noise_dynasquare_RDI(im, sci_signal_i, sci_signal_j,
     #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
     #sigma clip
     tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
-    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare)
+    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare, ddof=1)
     
     if verbose:
         print("Apertures sampled:", len(tot_noise_counts_dynasquare))
@@ -1340,7 +1340,7 @@ def measure_noise_wedge_RDI(im, sci_signal_i, sci_signal_j,
     
     #sigma clip
     tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge)
+    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge, ddof=1)
     
     print("Apertures sampled:", len(tot_noise_counts_wedge))
     #print("Measured noise wedge", measured_noise_wedge)
@@ -1371,7 +1371,7 @@ def calc_CC_SNR_ADI(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i,
     
     cc_noise_sgcl = sigma_clip(cc_noise_vals)
     
-    cc_noise = np.nanstd(cc_noise_sgcl)
+    cc_noise = np.nanstd(cc_noise_sgcl, ddof=1)
     #print(cc_noise_sgcl)
     
     cc_SNR = cc_sig / cc_noise
@@ -1397,7 +1397,7 @@ def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_
     
     cc_noise_sgcl = sigma_clip(cc_noise_vals)
     
-    cc_noise = np.nanstd(cc_noise_sgcl)
+    cc_noise = np.nanstd(cc_noise_sgcl, ddof=1)
     #print(cc_noise_sgcl)
     
     cc_SNR = cc_sig / cc_noise
