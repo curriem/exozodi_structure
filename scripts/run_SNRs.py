@@ -517,7 +517,7 @@ def process(config):
         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
         
 
-        if iterations == 100:
+        if iterations == 500:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
