@@ -517,7 +517,7 @@ def process(config):
         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
         
 
-        if iterations == 500:
+        if iterations == 100:
             print("NOT CONVERGED: Iteration limit reached.")
             break
         
@@ -532,11 +532,11 @@ def process(config):
     median_measured_signal_before_hipass = np.median(measured_signal_before_hipass_arr)
     median_measured_signal_after_hipass = np.median(measured_signal_after_hipass_arr)
 
-    std_SNR_after_hipass = np.std(SNR_after_hipass_arr)
-    std_cc_SNR_after_hipass = np.std(cc_SNRs_after_hipass)
-    std_noise_after_hipass = np.std(measured_noise_after_hipass_arr)
-    std_noise_after_hipass_out = np.std(measured_noise_after_hipass_out_arr)
-    std_signal_after_hipass = np.std(measured_signal_after_hipass_arr)
+    std_SNR_after_hipass = np.std(SNR_after_hipass_arr, ddof=1)
+    std_cc_SNR_after_hipass = np.std(cc_SNRs_after_hipass, ddof=1)
+    std_noise_after_hipass = np.std(measured_noise_after_hipass_arr, ddof=1)
+    std_noise_after_hipass_out = np.std(measured_noise_after_hipass_out_arr, ddof=1)
+    std_signal_after_hipass = np.std(measured_signal_after_hipass_arr, ddof=1)
 
     
     verbose = False
