@@ -1374,7 +1374,7 @@ def calc_CC_SNR_ADI(cc_map, noise_map, sci_signal_i, sci_signal_j, ref_signal_i,
     cc_noise = np.nanstd(cc_noise_sgcl, ddof=1)
     #print(cc_noise_sgcl)
     
-    cc_SNR = cc_sig / cc_noise
+    cc_SNR = np.abs(cc_sig) / cc_noise
     
     return cc_SNR
 
@@ -1400,7 +1400,7 @@ def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_
     cc_noise = np.nanstd(cc_noise_sgcl, ddof=1)
     #print(cc_noise_sgcl)
     
-    cc_SNR = cc_sig / cc_noise
+    cc_SNR = np.abs(cc_sig) / cc_noise
     
     return cc_SNR
 
@@ -1440,6 +1440,181 @@ def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_s
     ref_sig -= ref_nr_median
     tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
     return np.abs(tot_sig)
+
+
+def calc_SNR_ttest(signal_apertures, noise_apertures):
+    
+    # t-test:
+    # SNR = (x1 - x2)/(s2*sqrt(1+1/n2))
+    # where:
+    # x1 = intensity of signal apertures
+    # x2 = average intensity of remaining noise apertures
+    # n1 = number of signal apertures 
+    # n2 = number of remaining noise apertures
+    # s12 = combined standard deviation of noise apertures
+
+    n1 = 1
+    n2 = len(noise_apertures)
+    x1 = np.abs(signal_apertures)
+    x2 = np.mean(noise_apertures)
+    
+    
+    term1 = np.sum((x1-np.mean(x1))**2)
+    term2 = np.sum((noise_apertures-np.mean(noise_apertures))**2)
+    
+    s12 = np.sqrt( (term1 + term2) / (n1+n2-2) )
+
+    
+    SNR_ttest = (x1 - x2) / (s12*np.sqrt(1/n1 + 1/n2))
+    
+    return SNR_ttest
+    
+    
+    
+
+
+def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                       aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
+    
+    
+
+    
+    imsz, imsz = im.shape
+    apsz, apsz = aperture.shape
+    ap_rad = int((apsz - 1)/2)
+    
+    sci_signal_mask = np.zeros_like(im, dtype=bool)
+    sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
+    ref_signal_mask = np.zeros_like(im, dtype=bool)
+    ref_signal_mask[ref_signal_i-ap_rad:ref_signal_i+ap_rad+1, ref_signal_j-ap_rad: ref_signal_j+ap_rad+1] = aperture
+    
+    sci_sig = im[sci_signal_mask]
+    ref_sig = im[ref_signal_mask]
+    
+    signal_apertures = np.sum(sci_sig) + -1*np.sum(ref_sig)
+    
+    
+    
+    ## define noise region
+    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle)
+    
+    if corrections:
+        #### do an r^2 correction on the region
+        nr_dynasquare_sci = r2_correction(nr_dynasquare_sci)
+        nr_dynasquare_ref = r2_correction(nr_dynasquare_ref)
+        
+# =============================================================================
+#         #### do an azimuthal correction on the wedge  region
+#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
+#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
+# =============================================================================
+    
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
+    
+        
+    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
+    tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref
+    
+    
+    
+    ##### check if sci and ref regions have equal number of apertures sampled
+    if len(tot_sci_ap_counts_dynasquare) == len(tot_ref_ap_counts_dynasquare):
+        pass
+    elif len(tot_sci_ap_counts_dynasquare) > len(tot_ref_ap_counts_dynasquare):
+        num_inds_to_cut = len(tot_sci_ap_counts_dynasquare) - len(tot_ref_ap_counts_dynasquare)
+        tot_sci_ap_counts_dynasquare = tot_sci_ap_counts_dynasquare[:-num_inds_to_cut]
+    elif len(tot_sci_ap_counts_dynasquare) < len(tot_ref_ap_counts_dynasquare):
+        num_inds_to_cut = len(tot_ref_ap_counts_dynasquare) - len(tot_sci_ap_counts_dynasquare)
+        tot_ref_ap_counts_dynasquare = tot_ref_ap_counts_dynasquare[:-num_inds_to_cut]
+    else:
+        assert False, "Something is wrong"
+        
+    
+    
+    
+    noise_apertures = tot_sci_ap_counts_dynasquare + -1 * tot_ref_ap_counts_dynasquare
+    
+    std_correction_factor = np.sqrt(1 + (1/len(noise_apertures)))
+    measured_noise = np.nanstd(noise_apertures, ddof=1) * std_correction_factor
+    
+    
+    SNR_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
+    
+    
+    noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
+    
+    return SNR_ttest, measured_noise, noise_map_sci
+
+def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, 
+                       aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
+    
+    
+
+    
+    imsz, imsz = im.shape
+    apsz, apsz = aperture.shape
+    ap_rad = int((apsz - 1)/2)
+    
+    sci_signal_mask = np.zeros_like(im, dtype=bool)
+    sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
+    
+    sci_sig = im[sci_signal_mask]
+    
+    signal_apertures = np.sum(sci_sig) 
+    
+    
+    
+    ## define noise region
+    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
+    
+    if corrections:
+        #### do an r^2 correction on the region
+        nr_dynasquare_sci = r2_correction(nr_dynasquare_sci)
+        
+# =============================================================================
+#         #### do an azimuthal correction on the wedge  region
+#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
+#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
+#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
+#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
+# =============================================================================
+    
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    
+        
+    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
+    
+
+        
+    
+    
+    
+    noise_apertures = tot_sci_ap_counts_dynasquare 
+    
+    std_correction_factor = np.sqrt(1 + (1/len(noise_apertures)))
+    measured_noise = np.nanstd(noise_apertures, ddof=1) * std_correction_factor
+    
+    
+    SNR_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
+    
+    
+    noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
+    
+    return SNR_ttest, measured_noise, noise_map_sci
+
+
+    
+    
+    
+    
+    
+    
 
 
 def measure_signal_RDI(sub_im, noise_map_sci, sci_signal_i, sci_signal_j, aperture):
