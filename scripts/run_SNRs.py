@@ -156,6 +156,8 @@ def process(config):
     SNR_before_hipass_arr = []
     SNR_after_hipass_arr = []
     
+    signal
+    
     measured_noise_before_hipass_arr = []
     measured_noise_after_hipass_arr = []
     measured_noise_before_hipass_out_arr = []
@@ -328,7 +330,6 @@ def process(config):
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out,
-                           #median_measured_signal_before_hipass, median_measured_signal_after_hipass, 
                            std_SNR_after_hipass, std_cc_SNR_after_hipass, std_noise_after_hipass, 
                            std_noise_after_hipass_out])
     
@@ -366,7 +367,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
-    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass std_SNR_after_hipass std_cc_SNR_after_hipass std_noise_after_hipass std_noise_after_hipass_out std_signal_after_hipass"
+    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out std_SNR_after_hipass std_cc_SNR_after_hipass std_noise_after_hipass std_noise_after_hipass_out"
     save_fl = "data_{}_{}".format(tele, DI)
     if planet_outside:
         save_fl += "_planout"
