@@ -309,7 +309,7 @@ def process(config):
     std_noise_after_hipass_out = np.std(measured_noise_after_hipass_out_arr, ddof=1)
 
     
-    verbose = True
+    verbose = False
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
