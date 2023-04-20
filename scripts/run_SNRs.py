@@ -22,9 +22,9 @@ try:
     planloc = str(sys.argv[4])
 except IndexError:
     
-    tele = "LUVA"
+    tele = "LUVB"
     DI = "RDI"
-    noise_region = "dynasquare"
+    noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
 
@@ -161,18 +161,13 @@ def process(config):
     measured_noise_before_hipass_out_arr = []
     measured_noise_after_hipass_out_arr = []
     
-    measured_signal_before_hipass_arr = []
-    measured_signal_after_hipass_arr = []
     
-    frac_diff_med_arr = []
-    frac_diff_std_arr = []
-    converged = False
-    convergence_counter = 0
-    iterations = 0
+
+    niter = 200    
     
-    while not converged:
-        iterations += 1
-        #print(iterations)
+    for iterations in range(niter):
+        if iterations % 10 == 0:
+            print(iterations)
     
         # synthesize images
         if DI == "ADI":
@@ -227,11 +222,7 @@ def process(config):
         # perform subtraction 
         sub_im = sci_im - ref_im
         
-       
-# =============================================================================
-#         ezf.plot_im_ADI(sub_im, sci_signal_i, sci_signal_j, sci_out_i, sci_out_j)
-#         assert False
-# =============================================================================
+
                 
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
@@ -242,274 +233,58 @@ def process(config):
         expected_noise_out = np.sqrt(expected_noise_outside)
         
         
-        # measure noise
-        if noise_region == "circle":
-            
-            if DI == "ADI":
-                measured_noise_before_hipass, \
-                    nr_circle_sci, nr_circle_sci_opp, \
-                    nr_circle_ref, nr_circle_ref_opp = ezf.measure_noise_circle_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                                            sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                            aperture, ap_sz)
-                
-                measured_noise_after_hipass, \
-                    nr_circle_sci, nr_circle_sci_opp, \
-                    nr_circle_ref, nr_circle_ref_opp = ezf.measure_noise_circle_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                                            sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                            aperture, ap_sz)
-                
-                measured_noise_before_hipass_out, \
-                    nr_circle_sci_out, nr_circle_sci_opp_out, \
-                    nr_circle_ref_out, nr_circle_ref_opp_out = ezf.measure_noise_circle_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                                    sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                                    aperture, ap_sz)
-                
-                measured_noise_after_hipass_out, \
-                    nr_circle_sci_out, nr_circle_sci_opp_out, \
-                    nr_circle_ref_out, nr_circle_ref_opp_out = ezf.measure_noise_circle_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                                    sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                                    aperture, ap_sz)
-            
-                noise_map_sci = ~np.isnan(nr_circle_sci) | ~np.isnan(nr_circle_sci_opp)
-                noise_map_ref = ~np.isnan(nr_circle_ref) | ~np.isnan(nr_circle_ref_opp)
-                
-                
-            elif DI == "RDI":
-                
-                measured_noise_before_hipass, \
-                    nr_circle_sci, nr_circle_sci_opp = ezf.measure_noise_circle_RDI(sub_im, sci_signal_i, sci_signal_j,
-                                                                            sci_signal_i_opp, sci_signal_j_opp, 
-                                                                            aperture, ap_sz)
-                
-                measured_noise_after_hipass, \
-                    nr_circle_sci, nr_circle_sci_opp = ezf.measure_noise_circle_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
-                                                                            sci_signal_i_opp, sci_signal_j_opp,
-                                                                            aperture, ap_sz)
-                
-                measured_noise_before_hipass_out, \
-                    nr_circle_sci_out, nr_circle_sci_opp_out = ezf.measure_noise_circle_RDI(sub_im, sci_out_i, sci_out_j,
-                                                                                    sci_out_i_opp, sci_out_j_opp, 
-                                                                                    aperture, ap_sz)
-                
-                measured_noise_after_hipass_out, \
-                    nr_circle_sci_out, nr_circle_sci_opp_out = ezf.measure_noise_circle_RDI(sub_im_hipass, sci_out_i, sci_out_j,
-                                                                                    sci_out_i_opp, sci_out_j_opp, 
-                                                                                    aperture, ap_sz)
-                    
-                noise_map_sci = ~np.isnan(nr_circle_sci) | ~np.isnan(nr_circle_sci_opp)
-                noise_map_sci_out = ~np.isnan(nr_circle_sci_out) | ~np.isnan(nr_circle_sci_opp_out)
-                
-            
-        elif noise_region == "ring":
-            
-            measured_noise_before_hipass, nr_ring = ezf.measure_noise_ring(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                              sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                              aperture, ap_sz)
-            
-            measured_noise_after_hipass, nr_ring = ezf.measure_noise_ring(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                             sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                             aperture, ap_sz)
-            
-            measured_noise_before_hipass_out, nr_ring_out = ezf.measure_noise_ring(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                  sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                  aperture, ap_sz)
-            
-            measured_noise_after_hipass_out, nr_ring_out = ezf.measure_noise_ring(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                 sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                 aperture, ap_sz)
-            
-            noise_map_sci = ~np.isnan(nr_ring)
-            noise_map_ref = ~np.isnan(nr_ring)
-
-
+        # cross correlation maps
         
-        elif noise_region == "wedge":
-            wedge_corrections = False
-            
-            if DI == "ADI":
-                measured_noise_before_hipass, \
-                    nr_wedge_sci, nr_wedge_sci_opp, \
-                    nr_wedge_ref, nr_wedge_ref_opp = ezf.measure_noise_wedge_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                         aperture, ap_sz, rotation_map, tele, "struct", corrections=wedge_corrections)
-                
-                measured_noise_after_hipass, \
-                    nr_wedge_sci, nr_wedge_sci_opp, \
-                    nr_wedge_ref, nr_wedge_ref_opp = ezf.measure_noise_wedge_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                                                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                                                         aperture, ap_sz, rotation_map, tele, "struct", corrections=wedge_corrections)
-                
-                measured_noise_before_hipass_out, \
-                    nr_wedge_sci_out, nr_wedge_sci_opp_out, \
-                    nr_wedge_ref_out, nr_wedge_ref_opp_out = ezf.measure_noise_wedge_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                       sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                       aperture, ap_sz, rotation_map, tele, "smooth", corrections=wedge_corrections)
-                
-                measured_noise_after_hipass_out, \
-                    nr_wedge_sci_out, nr_wedge_sci_opp_out, \
-                    nr_wedge_ref_out, nr_wedge_ref_opp_out = ezf.measure_noise_wedge_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j,
-                                                                      sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, 
-                                                                      aperture, ap_sz, rotation_map, tele, "smooth", corrections=wedge_corrections)
-                
-                noise_map_sci = ~np.isnan(nr_wedge_sci) | ~np.isnan(nr_wedge_sci_opp)
-                noise_map_ref = ~np.isnan(nr_wedge_ref) | ~np.isnan(nr_wedge_ref_opp)
-                noise_map_sci_out = ~np.isnan(nr_wedge_sci_out) | ~np.isnan(nr_wedge_sci_opp_out)
-
-                
-                
-                
-                
-                
-            elif DI == "RDI":
-                measured_noise_before_hipass, \
-                    nr_wedge_sci, nr_wedge_sci_opp = ezf.measure_noise_wedge_RDI(sub_im, sci_signal_i, sci_signal_j,
-                                                                         sci_signal_i_opp, sci_signal_j_opp,
-                                                                         aperture, ap_sz, rotation_map, tele, "struct", corrections=wedge_corrections)
-                
-                measured_noise_after_hipass, \
-                    nr_wedge_sci, nr_wedge_sci_opp = ezf.measure_noise_wedge_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
-                                                                         sci_signal_i_opp, sci_signal_j_opp,
-                                                                         aperture, ap_sz, rotation_map, tele, "struct", corrections=wedge_corrections)
-                
-                measured_noise_before_hipass_out, \
-                    nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im, sci_out_i, sci_out_j,
-                                                                       sci_out_i_opp, sci_out_j_opp, 
-                                                                       aperture, ap_sz, rotation_map, tele, "smooth", corrections=wedge_corrections)
-                
-                measured_noise_after_hipass_out, \
-                    nr_wedge_sci_out, nr_wedge_sci_opp_out = ezf.measure_noise_wedge_RDI(sub_im_hipass, sci_out_i, sci_out_j,
-                                                                      sci_out_i_opp, sci_out_j_opp,
-                                                                      aperture, ap_sz, rotation_map, tele, "smooth", corrections=wedge_corrections)
-                
-                noise_map_sci = ~np.isnan(nr_wedge_sci) | ~np.isnan(nr_wedge_sci_opp)
-                noise_map_sci_out = ~np.isnan(nr_wedge_sci_out) | ~np.isnan(nr_wedge_sci_opp_out)
-                
-        elif noise_region == "dynasquare":
-            
-            
-            
-                    
-            if DI == "ADI":
-                measured_noise_before_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp, \
-                    nr_dynasquare_ref, nr_dynasquare_ref_opp, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
-                                                                                 sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
-                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
-
-                
-                measured_noise_after_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp, \
-                    nr_dynasquare_ref, nr_dynasquare_ref_opp, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, \
-                                                                                 sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, \
-                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
-
-                
-                measured_noise_before_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
-                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
-                                                                                 sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
-                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
-
-                
-                measured_noise_after_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, \
-                    nr_dynasquare_ref_out, nr_dynasquare_ref_opp_out, n_ap = ezf.measure_noise_dynasquare_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, \
-                                                                                 sci_out_i_opp, sci_out_j_opp, ref_out_i_opp, ref_out_j_opp, \
-                                                                                 aperture, ap_sz, height, width, roll_angle, corrections=False, verbose=False)
-
-                
-                
-                noise_map_sci = ~np.isnan(nr_dynasquare_sci) | ~np.isnan(nr_dynasquare_sci_opp)
-                noise_map_ref = ~np.isnan(nr_dynasquare_ref) | ~np.isnan(nr_dynasquare_ref_opp)
-                noise_map_sci_out = ~np.isnan(nr_dynasquare_sci_out) | ~np.isnan(nr_dynasquare_sci_opp_out)
-                
-            elif DI == "RDI":
-                measured_noise_before_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im, sci_signal_i, sci_signal_j,
-                                                                                 sci_signal_i_opp, sci_signal_j_opp, 
-                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
-
-                
-                measured_noise_after_hipass, \
-                    nr_dynasquare_sci, nr_dynasquare_sci_opp, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
-                                                                                 sci_signal_i_opp, sci_signal_j_opp,
-                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
-
-                
-                measured_noise_before_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im, sci_out_i, sci_out_j, 
-                                                                                 sci_out_i_opp, sci_out_j_opp, 
-                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
-
-                
-                measured_noise_after_hipass_out, \
-                    nr_dynasquare_sci_out, nr_dynasquare_sci_opp_out, n_ap = ezf.measure_noise_dynasquare_RDI(sub_im_hipass, sci_out_i, sci_out_j,
-                                                                                 sci_out_i_opp, sci_out_j_opp, 
-                                                                                 aperture, ap_sz, height, width, corrections=False, verbose=False)
-               
-                
-                
-                noise_map_sci = ~np.isnan(nr_dynasquare_sci) | ~np.isnan(nr_dynasquare_sci_opp)
-                noise_map_sci_out = ~np.isnan(nr_dynasquare_sci_out) | ~np.isnan(nr_dynasquare_sci_opp_out)
-            
-                    
-                    
-            
+        cc_map_before_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask)
+        cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
         
-# =============================================================================
-#         ezf.plot_im_ADI(sub_im_hipass*noise_map_sci_out, sci_signal_i, sci_signal_j, sci_out_i, sci_out_j)
-#         assert False
-# =============================================================================
         
-        # measure signal
         if DI == "ADI":
-            signal_before_hipass = ezf.measure_signal_ADI(sub_im, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-            signal_after_hipass = ezf.measure_signal_ADI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), ~np.isnan(nr_dynasquare_ref), sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture)
-
-        elif DI == "RDI":
-            signal_before_hipass = ezf.measure_signal_RDI(sub_im, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
-            signal_after_hipass = ezf.measure_signal_RDI(sub_im_hipass, ~np.isnan(nr_dynasquare_sci), sci_signal_i, sci_signal_j, aperture)
+            SNR_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_before_hipass_out, measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            
+            
+            cc_SNR_before_hipass = ezf.calc_CC_SNR_ADI(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+            cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
             
         
-        
-        measured_signal_before_hipass_arr.append(signal_before_hipass)
-        measured_signal_after_hipass_arr.append(signal_after_hipass)
-
-        SNR_before_hipass = signal_before_hipass / measured_noise_before_hipass
-        SNR_after_hipass = signal_after_hipass / measured_noise_after_hipass
-        
-        
+        elif DI == "RDI":
+            SNR_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im, sci_signal_i, sci_signal_j, 
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_before_hipass_out, measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im, sci_out_i, sci_out_j,
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            SNR_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_out_i, sci_out_j,
+                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False)
+            
+            cc_SNR_before_hipass = ezf.calc_CC_SNR_RDI(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+            cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+            
         SNR_before_hipass_arr.append(SNR_before_hipass)
         SNR_after_hipass_arr.append(SNR_after_hipass)
         
-        #print("SNR before hipass:", SNR_before_hipass)
-        #print("SNR after hipass:", SNR_after_hipass)
-
+        
             
         
         measured_noise_before_hipass_arr.append(measured_noise_before_hipass)
         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
         measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
         measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
-        
-        
-        
-
-        
-
-        # cross correlation
-        
-        cc_map_before_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask)
-        cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
-                
-        
-
-        if DI == "ADI":
-            cc_SNR_before_hipass = ezf.calc_CC_SNR_ADI(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-        elif DI == "RDI":
-            cc_SNR_before_hipass = ezf.calc_CC_SNR_RDI(cc_map_before_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+            
             
         
         cc_SNRs_before_hipass.append(cc_SNR_before_hipass)
@@ -517,9 +292,6 @@ def process(config):
         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
         
 
-        if iterations == 500:
-            print("NOT CONVERGED: Iteration limit reached.")
-            break
         
     median_SNR_before_hipass = np.median(SNR_before_hipass_arr)
     median_SNR_after_hipass = np.median(SNR_after_hipass_arr)
@@ -529,17 +301,15 @@ def process(config):
     median_measured_noise_after_hipass = np.median(measured_noise_after_hipass_arr)
     median_measured_noise_before_hipass_out = np.median(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.median(measured_noise_after_hipass_out_arr)
-    median_measured_signal_before_hipass = np.median(measured_signal_before_hipass_arr)
-    median_measured_signal_after_hipass = np.median(measured_signal_after_hipass_arr)
+ 
 
     std_SNR_after_hipass = np.std(SNR_after_hipass_arr, ddof=1)
     std_cc_SNR_after_hipass = np.std(cc_SNRs_after_hipass, ddof=1)
     std_noise_after_hipass = np.std(measured_noise_after_hipass_arr, ddof=1)
     std_noise_after_hipass_out = np.std(measured_noise_after_hipass_out_arr, ddof=1)
-    std_signal_after_hipass = np.std(measured_signal_after_hipass_arr, ddof=1)
 
     
-    verbose = False
+    verbose = True
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
@@ -558,23 +328,23 @@ def process(config):
                            median_cc_SNR_after_hipass, median_cc_SNR_before_hipass, iterations,
                            median_measured_noise_before_hipass, median_measured_noise_after_hipass, expected_noise,
                            median_measured_noise_before_hipass_out, median_measured_noise_after_hipass_out, expected_noise_out,
-                           median_measured_signal_before_hipass, median_measured_signal_after_hipass, 
+                           #median_measured_signal_before_hipass, median_measured_signal_after_hipass, 
                            std_SNR_after_hipass, std_cc_SNR_after_hipass, std_noise_after_hipass, 
-                           std_noise_after_hipass_out, std_signal_after_hipass])
+                           std_noise_after_hipass_out])
     
     end_time = time.time()
     #print("Time elapsed for process: {} s".format(round(end_time - start_time, 2)))
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
     data = []
     
-    #configs = [([1, 10, "00", "1", "uniform"])]
-    configs = [([1, 101/101., "00", "1", "model"])]
+    configs = [([1, 101/101., "00", "1", "uniform"])]
+    #configs = [([1, 101/10., "60", "20", "model"])]
     for config in configs:
         
         data_arr  = process(config)
@@ -597,7 +367,7 @@ elif parallel == True:
     results = Parallel(n_jobs=39)(delayed(process)(config) for config in configs)
     
     header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_before_hipass median_SNR_after_hipass median_cc_SNR_after_hipass median_cc_SNR_before_hipass iterations measured_noise_before_hipass measured_noise_after_hipass expected_noise median_measured_noise_before_hipass_out median_measured_noise_after_hipass_out expected_noise_out median_measured_signal_before_hipass median_measured_signal_after_hipass std_SNR_after_hipass std_cc_SNR_after_hipass std_noise_after_hipass std_noise_after_hipass_out std_signal_after_hipass"
-    save_fl = "data_{}_{}_{}".format(tele, DI, noise_region)
+    save_fl = "data_{}_{}".format(tele, DI)
     if planet_outside:
         save_fl += "_planout"
     save_fl += ".dat"
