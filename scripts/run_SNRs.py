@@ -23,7 +23,7 @@ try:
 except IndexError:
     
     tele = "LUVB"
-    DI = "RDI"
+    DI = "ADI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
