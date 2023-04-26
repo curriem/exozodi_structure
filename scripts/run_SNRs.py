@@ -156,7 +156,6 @@ def process(config):
     SNR_before_hipass_arr = []
     SNR_after_hipass_arr = []
     
-    signal
     
     measured_noise_before_hipass_arr = []
     measured_noise_after_hipass_arr = []
@@ -165,7 +164,7 @@ def process(config):
     
     
 
-    niter = 200    
+    niter = 500    
     
     for iterations in range(niter):
         if iterations % 10 == 0:
@@ -338,7 +337,7 @@ def process(config):
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:
