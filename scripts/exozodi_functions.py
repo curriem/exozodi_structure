@@ -1715,10 +1715,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     total_noise = np.sqrt(noise_ttest**2 + signal_apertures)
     
     SNR_total = signal_ttest / total_noise
-    print("signal", signal_ttest)
-    print("ttest noise", total_noise)
-    print("classic noise", np.sqrt(np.std(noise_apertures, ddof=1)**2 + (signal_apertures -np.mean(noise_apertures))))
-    assert False
+
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
     return SNR_total, SNR_classic, total_noise, noise_map_sci
