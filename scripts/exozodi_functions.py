@@ -6,6 +6,26 @@ from scipy.ndimage import zoom, shift, rotate
 from scipy.interpolate import NearestNDInterpolator
 
 def plot_im(im, signal_i, signal_j, log=False):
+    """
+    Plotting function. plots a basic coronagraph image with crosshairs 
+    at the specified location
+
+    Parameters
+    ----------
+    im : 2D numpy array
+        image you want to plot
+    signal_i : int
+        i location of the crosshairs to plot
+    signal_j : int
+        j location of the crosshairs to plot
+    log : bool, optional
+        True if you want a log plot. The default is False.
+
+    Returns
+    -------
+    None.
+
+    """
     plt.figure(figsize=(20,20))
     if log:
         plt.imshow(np.log(im), origin='lower')
@@ -14,7 +34,32 @@ def plot_im(im, signal_i, signal_j, log=False):
     plt.axhline(signal_i, color="white", linestyle="--")
     plt.axvline(signal_j, color="white", linestyle="--")
     plt.colorbar()
+    
+    
 def plot_im_ADI(im, im1_signal_i, im1_signal_j, im2_signal_i, im2_signal_j):
+    """
+    Plotting function. plots a basic coronagraph image with crosshairs 
+    at the specified locations. This is useful for ADI subtracted images
+    where the planet shows up in two locations separated by the roll angle
+
+    Parameters
+    ----------
+    im : 2D numpy array
+        image you want to plot
+    im1_signal_i : int
+        i location of the first crosshairs to plot
+    im1_signal_j : int
+        j location of the first crosshairs to plot
+    im2_signal_i : int
+        i location of the second crosshairs to plot
+    im2_signal_j : int
+        j location of the second crosshairs to plot
+
+    Returns
+    -------
+    None.
+
+    """
     plt.figure(figsize=(20,20))
     plt.imshow(im, origin='lower')
     plt.axhline(im1_signal_i, color="white", linestyle="--")
@@ -27,12 +72,16 @@ def plot_im_ADI(im, im1_signal_i, im1_signal_j, im2_signal_i, im2_signal_j):
 def high_pass_filter(img, filtersize=10):
     """
     A FFT implmentation of high pass filter.
+    This function was adapted from the PyKlip suite
+    (https://pyklip.readthedocs.io/en/latest/)
 
-    Args:
+    Parameters
+    ----------
         img: a 2D image
         filtersize: size in Fourier space of the size of the space. In image space, size=img_size/filtersize
 
-    Returns:
+    Returns
+    -------
         filtered: the filtered image
     """
     # mask NaNs if there are any
@@ -65,33 +114,32 @@ def high_pass_filter(img, filtersize=10):
     return filtered
 
 
-# =============================================================================
-# def cc_SNR_unknown_loc(cc_map, pix_radius, mask_antisignal=False):
-#     signal_i, signal_j = np.unravel_index(np.nanargmax(cc_map), cc_map.shape)
-#     signal_mask = np.zeros_like(cc_map, dtype=bool)
-#     
-#     signal_size = 2*pix_radius
-#     signal_mask[signal_i-signal_size:signal_i+signal_size+1, signal_j-signal_size:signal_j+signal_size+1] = True
-#     
-#     if mask_antisignal:
-#         valid_cc_mask = calculate_valid_cc_mask(cc_map, signal_i, signal_j, roll_angle, aperture, central_pixel)
-#         cc_sig = (cc_map[signal_i, signal_j])# - np.nanmean(cc_map[valid_cc_mask])) 
-# #         cc_bkgr = np.nanstd(cc_map_single[valid_cc_mask] )
-#         cc_bkgr = np.nanstd(cc_map[valid_cc_mask] )
-#     else:
-#         cc_sig = (cc_map[signal_i, signal_j])# - np.nanmean(cc_map[~signal_mask]))  
-# #      cc_bkgr = np.nanstd(cc_map_single[~signal_mask] )
-#         cc_bkgr = np.nanstd(cc_map[~signal_mask] )
-#     
-#     #print("cc_sig", cc_sig)
-#     cc_SNR = cc_sig / cc_bkgr
-# #     cc_SNR = cc_sig / np.sqrt(cc_bkgr)
-#     return cc_SNR
-# =============================================================================
 
+def calculate_cc_map(matched_filter_datacube, im, valid_mask, hipass=False, filtersize=10):
+    """
+    
 
+    Parameters
+    ----------
+    matched_filter_datacube : 3D numpy array
+        datacube containing all combinations of matched filters
+    im : 2D numpy array
+        image you want to apply the matched filter to
+    valid_mask : 2D numpy array, boolean
+        Where the matched filter is valid. i.e. only valid inside the OWA and
+        outside the IWA
+    hipass : bool, optional
+        True if you want to apply a hipass filter first. The default is False.
+    filtersize : float
+        filter size for high pass filter. The default is 10.
 
-def calculate_cc_map(matched_filter_datacube, im, valid_mask, hipass=False, filtersize=None):
+    Returns
+    -------
+    cc_map : 2D numpy array
+        map of matched filter (cross-correlation) values.
+
+    """
+    
     # cross-correlate
     Npix_i, Npix_j = im.shape
     cc_map = np.empty_like(im)
@@ -110,6 +158,24 @@ def calculate_cc_map(matched_filter_datacube, im, valid_mask, hipass=False, filt
     return cc_map
 
 def mas_to_lamD(sep_mas, lam, D):
+    """
+    function to convert mas to lam/D units
+
+    Parameters
+    ----------
+    sep_mas : float
+        value in mas. must have astropy.units.mas attached
+    lam : float
+        wavelength. must have astropy units
+    D : float
+        diameter of telescope. must have astropy.units.m attached
+
+    Returns
+    -------
+    lamD_sep : float
+        separation in lam/D units.
+
+    """
     # sep_mas: planet--star separation in mas
     # lam: wl of observation in um
     # D: diam of telescope in m
@@ -120,6 +186,24 @@ def mas_to_lamD(sep_mas, lam, D):
     return sep_lamD
 
 def lamD_to_mas(lamD_sep, lam, D):
+    """
+    function to convert lam/D to mas units
+
+    Parameters
+    ----------
+    lamD_sep : float
+        separation in lam/D units.
+    lam : float
+        wavelength. must have astropy units
+    D : float
+        diameter of telescope. must have astropy.units.m attached
+
+    Returns
+    -------
+    sep_mas : float
+        value in mas. must have astropy.units.mas attached
+
+    """
     # sep_lamD: planet--star separation in lamD
     # lam: wl of observation in um
     # D: diam of telescope in m
@@ -131,6 +215,36 @@ def lamD_to_mas(lamD_sep, lam, D):
     return sep_mas
 
 def construct_maps(arr, pixscale_mas, diam, IWA_lamD=8.5, OWA_lamD=26., plotting=False):
+    """
+    constructing maps showing (1) rotation values for each pixel, (2) a boolean
+    array showing which pixels are inside/outside the OWA/IWA, and (3) a map of 
+    how far away each pixel is from the image center
+
+    Parameters
+    ----------
+    arr : 2D numpy array
+        image
+    pixscale_mas : float
+        pixel scale of image
+    diam : float
+        diameter of telescope.
+    IWA_lamD : float, optional
+        IWA of telescope. The default is 8.5.
+    OWA_lamD : float, optional
+        OWA of telescope. The default is 26..
+    plotting : bool, optional
+        True if you want to plot maps. The default is False.
+
+    Returns
+    -------
+    rotation_map : 2D numpy arrary
+        rotation values for each pixel.
+    valid_mask : 2D numpy arrary
+        a boolean array showing which pixels are inside/outside the OWA/IWA
+    radius_map : 2D numpy arrary
+        a map of how far away each pixel is from the image center
+
+    """
     Npix_i, Npix_j = arr.shape
 
     IWA_mas = lamD_to_mas(IWA_lamD, 0.5* u.um, diam*0.9*u.m)
@@ -174,14 +288,32 @@ def construct_maps(arr, pixscale_mas, diam, IWA_lamD=8.5, OWA_lamD=26., plotting
     return rotation_map, valid_mask, radius_map
 
 def get_psf_stamp(psf, psf_i, psf_j, pix_radius):
+    """
+    a function to get a small stamp image of the psf
+
+    Parameters
+    ----------
+    psf : 2D numpy array
+        large psf image.
+    psf_i : int
+        i location of psf
+    psf_j : int
+        j location of psf
+    pix_radius : TYPE
+        radius of desired psf stamp (in pixels)
+
+    Returns
+    -------
+    psf_stamp : 2D numpy array
+        smaller stamp image of psf.
+
+    """
     x_min = int(psf_i-pix_radius)
     x_max = int(psf_i+pix_radius)+1
     
     y_min = int(psf_j-pix_radius)
     y_max = int(psf_j+pix_radius) +1
-    #print(x_min, x_max)
     psf_stamp = psf[x_min:x_max, y_min:y_max]
-    #print(psf_stamp)
     stamp_center = pix_radius
     
     for i in range(pix_radius*2 + 1):
@@ -480,8 +612,59 @@ def synthesize_images_ADI(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j
 
 def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zodis, aperture,
                           target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
-                          add_noise=True, add_star=True, uniform_disk=False, r2_disk=False, simple_planet=False,
-                          sci_noise_coords=None, ref_noise_coords=None):
+                          add_noise=True, add_star=True, uniform_disk=False, simple_planet=False):
+    """
+    function to synthesize images for ADI
+
+    Parameters
+    ----------
+    im_dir : string
+        directory that points to noiseless detector images.
+    sci_plan_i : int
+        i location of planet signal in first "science" image.
+    sci_plan_j : int
+        j location of planet signal in first "science" image.
+    ref_plan_i : int
+        i location of planet signal in second "reference" image.
+    ref_plan_j : int
+        j location of planet signal in second "reference" image.
+    zodis : float
+        zodi level of image.
+    aperture : 2D numpy array, boolean
+        aperture placed on image to measure signal/noise.
+    target_SNR : float, optional
+        injected SNR of signal. The default is 7.
+    pix_radius : int, optional
+        radius of aperture. The default is 1.
+    verbose : bool, optional
+        True if you want to print things. The default is False.
+    planet_noise : bool
+        True if you want to include planet noise. The default is True.
+    add_noise : bool
+        True if you want to include all noise except for planet noise. The default is True.
+    add_star : bool
+        True if you want to include the star. The default is True.
+    uniform_disk : bool, optional
+        true if you want a uniform exozodi disk. The default is False.
+    simple_planet : bool, optional
+        True if you don't want to include all of planet psf. The default is False.
+
+    Returns
+    -------
+    science_image : 2D array
+        noisy image 1 "science" image
+    reference_image : 2D array
+        noisy image 2 "reference" image of planet after ADI rotation
+    sci_planet_counts : float
+        photon count of the planet signal
+    tot_noise_counts : float
+        photon count of all noise sources at planet location
+    tot_noise_counts_out : float
+        photon count of all noise sources at location outside of exozodi structure
+    (sci_out_i, sci_out_j) : tuple, int
+        coordinates of a location outside of exozodi structure
+
+    """
     sci_plan_im_fits = pyfits.open(im_dir + "/DET/sci_plan.fits")
     sci_plan_im = sci_plan_im_fits[0].data[0, 0]
     
@@ -556,126 +739,40 @@ def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         
     
         
-    if sci_noise_coords is not None:
-        
-        # calculating the average CRs in a region around the planet
-        # this is how SNR is measured later, so it makes sense to use now
-        
-
-# =============================================================================
-#         sci_star_CRs = []
-#         sci_disk_CRs = []
-#         for sci_coords in sci_noise_coords:
-#             coord_i, coord_j = sci_coords
-#             
-#             sci_star_aperture = sci_star_im[coord_i-pix_radius:coord_i+pix_radius+1, coord_j-pix_radius:coord_j+pix_radius+1]
-#             sci_star_aperture *= aperture
-#             sci_star_CRs.append(np.sum(sci_star_aperture))
-#             
-#             sci_disk_aperture = np.copy(sci_disk_im[coord_i-pix_radius:coord_i+pix_radius+1, coord_j-pix_radius:coord_j+pix_radius+1])
-#             sci_disk_aperture *= aperture
-#             
-#             sci_disk_CRs.append(np.sum(sci_disk_aperture))
-#             
-#         
-#         sci_star_CR = np.median(sci_star_CRs)
-#         sci_disk_CR = np.median(sci_disk_CRs)
-#         
-#         ref_star_CRs = []
-#         ref_disk_CRs = []
-#         for ref_coords in ref_noise_coords:
-#             coord_i, coord_j = ref_coords
-#             
-#             ref_star_aperture = ref_star_im[coord_i-pix_radius:coord_i+pix_radius+1, coord_j-pix_radius:coord_j+pix_radius+1]
-#             ref_star_aperture *= aperture
-#             ref_star_CRs.append(np.sum(ref_star_aperture))
-#             
-#             ref_disk_aperture = ref_disk_im[coord_i-pix_radius:coord_i+pix_radius+1, coord_j-pix_radius:coord_j+pix_radius+1]
-#             ref_disk_aperture *= aperture
-#             
-#             ref_disk_CRs.append(np.sum(ref_disk_aperture))
-#             
-#         
-#         ref_star_CR = np.median(ref_star_CRs)
-#         ref_disk_CR = np.median(ref_disk_CRs)
-# =============================================================================
-
-        CR_rad = 4
-        sci_star_CR = 5*np.median(sci_star_im[sci_plan_i-CR_rad:sci_plan_i+CR_rad+1, sci_plan_j-CR_rad:sci_plan_j+CR_rad+1])
-        sci_disk_CR = 5* np.median(sci_disk_im[sci_plan_i-CR_rad:sci_plan_i+CR_rad+1, sci_plan_j-CR_rad:sci_plan_j+CR_rad+1])
-        
-        ref_star_CR = 5*np.median(ref_star_im[ref_plan_i-CR_rad:ref_plan_i+CR_rad+1, ref_plan_j-CR_rad:ref_plan_j+CR_rad+1])
-        ref_disk_CR = 5*np.median(ref_disk_im[ref_plan_i-CR_rad:ref_plan_i+CR_rad+1, ref_plan_j-CR_rad:ref_plan_j+CR_rad+1])
-
-        sci_plan_noise_region = np.copy(sci_plan_im[sci_plan_i-CR_rad:sci_plan_i+CR_rad+1, sci_plan_j-CR_rad:sci_plan_j+CR_rad+1])
-        print(sci_plan_noise_region)
-        sci_plan_noise_region[sci_plan_i-pix_radius:sci_plan_i+pix_radius+1, sci_plan_j-CR_rad:sci_plan_j+CR_rad+1] *= ~aperture
-        print(sci_plan_noise_region)
-        assert False
-
-        tot_bkgr_CR = sci_star_CR + sci_disk_CR + ref_star_CR + ref_disk_CR
-        
-        total_signal_CR = sci_plan_CR + ref_plan_CR
-        total_noise_CR = total_signal_CR + tot_bkgr_CR
-
-
-        sci_star_CR_out = np.sum(sci_star_im * sci_aperture_mask_out)
-        ref_star_CR_out = np.sum(ref_star_im * ref_aperture_mask_out)
-        sci_disk_CR_out = np.sum(sci_disk_im*sci_aperture_mask_out)
-        ref_disk_CR_out = np.sum(ref_disk_im*ref_aperture_mask_out)
-        sci_bkgr_CR_out = sci_disk_CR_out + sci_star_CR_out
-        ref_bkgr_CR_out = ref_disk_CR_out + ref_star_CR_out
-        tot_bkgr_CR_out = sci_bkgr_CR_out + ref_bkgr_CR_out
-            
-            
-            
-     
-            
-    
-    else:
     
     
-        sci_star_CR = np.sum(sci_star_im * sci_aperture_mask)
-        ref_star_CR = np.sum(ref_star_im * ref_aperture_mask)
-        
-        sci_star_CR_out = np.sum(sci_star_im * sci_aperture_mask_out)
-        ref_star_CR_out = np.sum(ref_star_im * ref_aperture_mask_out)
-        
-        
-        
-        sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
-        ref_disk_CR = np.sum(ref_disk_im*ref_aperture_mask)
+    
+    sci_star_CR = np.sum(sci_star_im * sci_aperture_mask)
+    ref_star_CR = np.sum(ref_star_im * ref_aperture_mask)
+    
+    sci_star_CR_out = np.sum(sci_star_im * sci_aperture_mask_out)
+    ref_star_CR_out = np.sum(ref_star_im * ref_aperture_mask_out)
+    
+    
+    
+    sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
+    ref_disk_CR = np.sum(ref_disk_im*ref_aperture_mask)
 
-        sci_disk_CR_out = np.sum(sci_disk_im*sci_aperture_mask_out)
-        ref_disk_CR_out = np.sum(ref_disk_im*ref_aperture_mask_out)
-        
-# =============================================================================
-#         print("sci star CR:", sci_star_CR)
-#         print("ref star CR:", ref_star_CR)
-#         print("sci disk CR:", sci_disk_CR)
-#         print("ref disk CR:", ref_disk_CR)
-#         assert False
-# =============================================================================
+    sci_disk_CR_out = np.sum(sci_disk_im*sci_aperture_mask_out)
+    ref_disk_CR_out = np.sum(ref_disk_im*ref_aperture_mask_out)
+    
 
+
+    sci_bkgr_CR = sci_disk_CR + sci_star_CR
+    ref_bkgr_CR = ref_disk_CR + ref_star_CR
+        
+    sci_bkgr_CR_out = sci_disk_CR_out + sci_star_CR_out
+    ref_bkgr_CR_out = ref_disk_CR_out + ref_star_CR_out
     
     
-        sci_bkgr_CR = sci_disk_CR + sci_star_CR
-        ref_bkgr_CR = ref_disk_CR + ref_star_CR
-            
-        sci_bkgr_CR_out = sci_disk_CR_out + sci_star_CR_out
-        ref_bkgr_CR_out = ref_disk_CR_out + ref_star_CR_out
-        
-        
-        tot_bkgr_CR = sci_bkgr_CR + ref_bkgr_CR
-        tot_bkgr_CR_out = sci_bkgr_CR_out + ref_bkgr_CR_out
+    tot_bkgr_CR = sci_bkgr_CR + ref_bkgr_CR
+    tot_bkgr_CR_out = sci_bkgr_CR_out + ref_bkgr_CR_out
+
+
+    total_signal_CR = sci_plan_CR + ref_plan_CR
+    total_noise_CR = total_signal_CR + tot_bkgr_CR
     
-    
-        total_signal_CR = sci_plan_CR + ref_plan_CR
-        total_noise_CR = total_signal_CR + tot_bkgr_CR
         
-        
-        
-    
     
     tot_tint = target_SNR**2 * total_noise_CR/(total_signal_CR)**2 # s
     
@@ -711,15 +808,6 @@ def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         reference_image = reference_image_noisy.astype(float)
     
     
-# =============================================================================
-#     plt.figure()
-#     plt.imshow(science_image[sci_plan_i-7:sci_plan_i+8, sci_plan_j-7:sci_plan_j+8] - reference_image[sci_plan_i-7:sci_plan_i+8, sci_plan_j-7:sci_plan_j+8])
-#     plt.colorbar()
-#     assert False
-# =============================================================================
-    
-
-    
 
     return science_image, reference_image, sci_planet_counts, ref_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
 
@@ -727,6 +815,43 @@ def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
 def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
                           target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
                           add_noise=True, add_star=True, uniform_disk=False, r2_disk=False):
+    """
+    
+
+    Parameters
+    ----------
+    im_dir : TYPE
+        DESCRIPTION.
+    sci_plan_i : TYPE
+        DESCRIPTION.
+    sci_plan_j : TYPE
+        DESCRIPTION.
+    zodis : TYPE
+        DESCRIPTION.
+    aperture : TYPE
+        DESCRIPTION.
+    target_SNR : TYPE, optional
+        DESCRIPTION. The default is 7.
+    pix_radius : TYPE, optional
+        DESCRIPTION. The default is 1.
+    verbose : TYPE, optional
+        DESCRIPTION. The default is False.
+    planet_noise : TYPE, optional
+        DESCRIPTION. The default is True.
+    add_noise : TYPE, optional
+        DESCRIPTION. The default is True.
+    add_star : TYPE, optional
+        DESCRIPTION. The default is True.
+    uniform_disk : TYPE, optional
+        DESCRIPTION. The default is False.
+    r2_disk : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    None.
+
+    """
     
     sci_plan_im_fits = pyfits.open(im_dir + "/DET/sci_plan.fits")
     sci_plan_im = sci_plan_im_fits[0].data[0, 0]
@@ -883,6 +1008,54 @@ def synthesize_images_RDI(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
 def synthesize_images_RDI2(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
                           target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
                           add_noise=True, add_star=True, uniform_disk=False, r2_disk=False, simple_planet=False):
+    """
+    function to synthesize images for RDI
+
+    Parameters
+    ----------
+    im_dir : string
+        directory that points to noiseless detector images.
+    sci_plan_i : int
+        i location of planet signal in first "science" image.
+    sci_plan_j : int
+        j location of planet signal in first "science" image.
+    zodis : float
+        zodi level of image.
+    aperture : 2D numpy array, boolean
+        aperture placed on image to measure signal/noise.
+    target_SNR : float, optional
+        injected SNR of signal. The default is 7.
+    pix_radius : int, optional
+        radius of aperture. The default is 1.
+    verbose : bool, optional
+        True if you want to print things. The default is False.
+    planet_noise : bool
+        True if you want to include planet noise. The default is True.
+    add_noise : bool
+        True if you want to include all noise except for planet noise. The default is True.
+    add_star : bool
+        True if you want to include the star. The default is True.
+    uniform_disk : bool, optional
+        true if you want a uniform exozodi disk. The default is False.
+    simple_planet : bool, optional
+        True if you don't want to include all of planet psf. The default is False.
+
+    Returns
+    -------
+    science_image : 2D array
+        noisy image 1 "science" image
+    reference_image : 2D array
+        noisy image 2 "reference" image of planet after ADI rotation
+    sci_planet_counts : float
+        photon count of the planet signal
+    tot_noise_counts : float
+        photon count of all noise sources at planet location
+    tot_noise_counts_out : float
+        photon count of all noise sources at location outside of exozodi structure
+    (sci_out_i, sci_out_j) : tuple, int
+        coordinates of a location outside of exozodi structure
+
+    """
     
     sci_plan_im_fits = pyfits.open(im_dir + "/DET/sci_plan.fits")
     sci_plan_im = sci_plan_im_fits[0].data[0, 0]
@@ -1001,6 +1174,30 @@ def synthesize_images_RDI2(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
 
 
 def downbin_psf(psf, imsc, imsz, wave, diam, tele):
+    """
+    Downbins a stellar/planetary psf to scale defined by lam/D
+
+    Parameters
+    ----------
+    psf : 2D array
+        image of the psf you want to downbin.
+    imsc : float
+        pixel scale of psf image.
+    imsz : int
+        size of the image.
+    wave : float
+        wavelength of psf.
+    diam : float
+        diameter of telescope.
+    tele : string
+        name of telescope either "LUVA" or "LUVB".
+
+    Returns
+    -------
+    temp : 2D array
+        downbinned psf.
+
+    """
     
     if tele == "LUVA":
         shift_order = 1
@@ -1037,124 +1234,36 @@ def downbin_psf(psf, imsc, imsz, wave, diam, tele):
         
     return temp
 
-def region_ring(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz):
-    
-    imsz, imsz = sub_im.shape
-    imctr = (imsz-1)/2
-    
-    dr = 2*(2*ap_sz+1)
-    
-    noise_mask = np.zeros_like(sub_im)  
-    
-    signal_rad = np.sqrt((sci_signal_i-imctr)**2 + (sci_signal_j-imctr)**2)
-    inner_r = signal_rad - dr/2
-    outer_r = signal_rad + dr/2
-    
-    for i in range(imsz):
-        for j in range(imsz):
-            dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
-            if dist >= inner_r and dist < outer_r:
-                noise_mask[i, j] = 1
-                
-    noise_mask[sci_signal_i-ap_sz:sci_signal_i+ap_sz+1, sci_signal_j-ap_sz:sci_signal_j+ap_sz+1] = ~aperture
-    noise_mask[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
-    
-    zero_inds = np.where(noise_mask == 0.)
-    
-    noise_mask[zero_inds] = np.nan
-
-    noise_region = sub_im * noise_mask
-
-    return noise_region
-
-def region_circle(im, signal_i, signal_j, aperture, ap_sz, opposite=False):
-    
-    imsz, imsz = im.shape
-    imctr = (imsz-1)/2
-    
-    if opposite:
-        inner_r = -1
-    else:
-        inner_r = ap_sz
-
-    outer_r = 2*(2*ap_sz+1)
-    
-    noise_mask = np.ones_like(im) * np.nan
-    
-    for i in range(imsz):
-        for j in range(imsz):
-            d = np.sqrt((i-signal_i)**2 + (j-signal_j)**2)
-            if (d > inner_r) and (d < outer_r):
-                noise_mask[i, j] = 1.
-                
-    noise_region = im*noise_mask
-    
-    return noise_region
-
-def region_wedge(sub_im, signal_i, signal_j, aperture, ap_sz, rotation_map, angle, tele, disk_region, region_len_r=None, opposite=False):
-    
-    imsz, imsz = sub_im.shape
-    imctr = (imsz-1)/2
-    if region_len_r is None:
-        if tele == "LUVA":
-            if disk_region == "struct":
-                lower_dist = 17
-                upper_dist = 25
-            elif disk_region == "smooth":
-                lower_dist = 36
-                upper_dist = 44
-        elif tele == "LUVB":
-            if disk_region == "struct":
-                lower_dist = 10
-                upper_dist = 18
-            elif disk_region == "smooth":
-                lower_dist = 26
-                upper_dist = 34
-    else:
-        sig_dist_frm_ctr = np.sqrt((signal_i - imctr)**2 + (signal_j - imctr)**2)
-        lower_dist = sig_dist_frm_ctr - region_len_r
-        upper_dist = sig_dist_frm_ctr + region_len_r
-        #print("lower, upper:", lower_dist, upper_dist)
-        
-
-    
-    noise_mask = np.zeros_like(sub_im)
-    
-    sig_rot = rotation_map[signal_i, signal_j]
-    
-    lower_ang = sig_rot-angle/2
-    upper_ang = sig_rot+angle/2
-    
-    
-# =============================================================================
-#     sig_dist = np.sqrt((signal_i-imctr)**2 + (signal_j-imctr)**2) 
-#     
-#     lower_dist = sig_dist - (ap_sz*2+1)
-#     upper_dist = sig_dist + (ap_sz*2+1)
-# =============================================================================
-    
-    
-    for i in range(imsz):
-        for j in range(imsz):
-            ang = rotation_map[i,j]
-            dist = np.sqrt((i-imctr)**2 + (j-imctr)**2)
-            if ang >= lower_ang and ang <= upper_ang and dist >= lower_dist and dist <= upper_dist:
-                noise_mask[i, j] = 1
-    
-    if opposite:
-        pass
-    else:
-        noise_mask[signal_i-ap_sz:signal_i+ap_sz+1, signal_j-ap_sz:signal_j+ap_sz+1] = ~aperture
-
-
-    zero_inds = np.where(noise_mask == 0.)
-    noise_mask[zero_inds] = np.nan
-    
-    noise_region = sub_im * noise_mask
-    
-    return noise_region
 
 def region_dynasquare(sub_im, signal_i, signal_j, aperture, ap_sz, width, height, opposite=False):
+    """
+    defines a region to be used to calculate noise
+
+    Parameters
+    ----------
+    sub_im : 2D array
+        psf subtracted image.
+    signal_i : int
+        i coord of signal.
+    signal_j : int
+        j coord of signal.
+    aperture : 2D array
+        mask of aperture used to measure signal/noise.
+    ap_sz : int
+        radius in pixels of aperture.
+    width : int
+        width of region used to calculate noise.
+    height : int
+        height of region used to calculate noise.
+    opposite : bool, optional
+        True if you want the region on the opposite side of the image as the signal. The default is False.
+
+    Returns
+    -------
+    noise_region : 2D array
+        region used to calculate noise.
+
+    """
     
     imsz, imsz = sub_im.shape            
 
@@ -1177,27 +1286,6 @@ def region_dynasquare(sub_im, signal_i, signal_j, aperture, ap_sz, width, height
     return noise_region
 
 
-def get_opposite_wedge_region(wedge_region, im, signal_i_opp, signal_j_opp, ap_sz):
-    
-    imsz, imsz = wedge_region.shape
-    imctr = (imsz-1)/2
-
-    region_inds = ~np.isnan(wedge_region)
-    opp_region = np.zeros_like(wedge_region)
-    for i in range(imsz):
-        for j in range(imsz):
-            if region_inds[i,j]:
-                i_opp = int(imctr - (i-imctr))
-                j_opp = int(imctr - (j-imctr))
-                opp_region[i_opp, j_opp] = 1
-    opp_region[signal_i_opp-ap_sz:signal_i_opp+ap_sz+1, signal_j_opp-ap_sz:signal_j_opp+ap_sz+1] = 1
-    
-    zero_inds = np.where(opp_region == 0.)
-    opp_region[zero_inds] = np.nan
-    
-    opp_noise_region = im * opp_region
-    
-    return opp_noise_region
 
 def get_opposite_dynasquare_region(dynasquare_region, im, signal_i_opp, signal_j_opp, ap_sz):
     
@@ -1265,7 +1353,6 @@ def get_opp_coords(i, j, imctr):
     return int(i_opp), int(j_opp)  
 
             
-
 
 def sigma_clip(arr, thresh=3):
     # sigma clip
@@ -1405,180 +1492,6 @@ def get_planet_locations_and_info(roll_angle, planet_pos_mas, pix_radius, im_dir
 
 
 
-def measure_noise_circle_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                             sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                             aperture, ap_sz):
-    ## define noise region
-    nr_circle_sci = region_circle(im, sci_signal_i, sci_signal_j, aperture, ap_sz)
-    nr_circle_sci_opp = region_circle(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, opposite=True)
-    nr_circle_ref = region_circle(im, ref_signal_i, ref_signal_j, aperture, ap_sz)
-    nr_circle_ref_opp = region_circle(im, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, opposite=True)
-    
-    ## measure noise
-    counts_per_ap_nr_circle_sci, ap_coords_nr_circle_sci = sum_apertures_in_region(nr_circle_sci, aperture, ap_sz)
-    counts_per_ap_nr_circle_sci_opp, ap_coords_nr_circle_sci_opp = sum_apertures_in_region(nr_circle_sci_opp, aperture, ap_sz)
-    counts_per_ap_nr_circle_ref, ap_coords_nr_circle_ref = sum_apertures_in_region(nr_circle_ref, aperture, ap_sz)
-    counts_per_ap_nr_circle_ref_opp, ap_coords_nr_circle_ref_opp = sum_apertures_in_region(nr_circle_ref_opp, aperture, ap_sz)    
-
-    #### total noise counts
-    tot_sci_ap_counts_circle = np.concatenate((counts_per_ap_nr_circle_sci, counts_per_ap_nr_circle_sci_opp))
-    tot_ref_ap_counts_circle = np.concatenate((counts_per_ap_nr_circle_ref, counts_per_ap_nr_circle_ref_opp))
-    
-    ##### check if sci and ref regions have equal number of apertures sampled
-    if len(tot_sci_ap_counts_circle) == len(tot_ref_ap_counts_circle):
-        pass
-    elif len(tot_sci_ap_counts_circle) > len(tot_ref_ap_counts_circle):
-        num_inds_to_cut = len(tot_sci_ap_counts_circle) - len(tot_ref_ap_counts_circle)
-        tot_sci_ap_counts_circle = tot_sci_ap_counts_circle[:-num_inds_to_cut]
-    elif len(tot_sci_ap_counts_circle) < len(tot_ref_ap_counts_circle):
-        num_inds_to_cut = len(tot_ref_ap_counts_circle) - len(tot_sci_ap_counts_circle)
-        tot_ref_ap_counts_circle = tot_ref_ap_counts_circle[:-num_inds_to_cut]
-    else:
-        assert False, "Something is wrong"
-        
-    tot_noise_counts_circle = tot_sci_ap_counts_circle + -1 * tot_ref_ap_counts_circle
-
-    #### sigma clip 
-    tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
-    
-    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl, ddof=1)
-    
-    #print("Apertures sampled:", len(tot_noise_counts_circle))
-    #print("Measured noise circle", measured_noise_circle)
-    
-    return measured_noise_circle, nr_circle_sci, nr_circle_sci_opp, nr_circle_ref, nr_circle_ref_opp
-
-def measure_noise_circle_RDI(im, sci_signal_i, sci_signal_j,
-                             sci_signal_i_opp, sci_signal_j_opp, 
-                             aperture, ap_sz):
-    ## define noise region
-    nr_circle_sci = region_circle(im, sci_signal_i, sci_signal_j, aperture, ap_sz)
-    nr_circle_sci_opp = region_circle(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, opposite=True)
-    
-    ## measure noise
-    counts_per_ap_nr_circle_sci, ap_coords_nr_circle_sci = sum_apertures_in_region(nr_circle_sci, aperture, ap_sz)
-    counts_per_ap_nr_circle_sci_opp, ap_coords_nr_circle_sci_opp = sum_apertures_in_region(nr_circle_sci_opp, aperture, ap_sz)
-
-    #### total noise counts
-    tot_noise_counts_circle = np.concatenate((counts_per_ap_nr_circle_sci, counts_per_ap_nr_circle_sci_opp))
-    
-
-    #### sigma clip 
-    tot_noise_counts_circle_sgcl = sigma_clip(tot_noise_counts_circle)
-    
-    measured_noise_circle = np.nanstd(tot_noise_counts_circle_sgcl, ddof=1)
-    
-    #print("Apertures sampled:", len(tot_noise_counts_circle))
-    #print("Measured noise circle", measured_noise_circle)
-    
-    return measured_noise_circle, nr_circle_sci, nr_circle_sci_opp
-    
-    
-def measure_noise_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                         aperture, ap_sz):
-    
-    ## define noise region
-    nr_ring = region_ring(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz)
-    
-    ## measure noise
-    counts_per_ap_nr_ring, ap_coords_nr_ring = sum_apertures_in_region(nr_ring, aperture, ap_sz)
-    
-    #### make sure that the number of apertures is even
-    if len(counts_per_ap_nr_ring) % 2 == 0:
-        pass
-    else:
-        counts_per_ap_nr_ring = counts_per_ap_nr_ring[:-1]
-        ap_coords_nr_ring = ap_coords_nr_ring[:-1]
-        
-    
-    tot_noise_counts_ring = counts_per_ap_nr_ring[0::2] + -1*counts_per_ap_nr_ring[1::2]
-    
-    # sigma clip
-    tot_noise_counts_ring_sgcl = sigma_clip(tot_noise_counts_ring)
-    
-    measured_noise_ring = np.nanstd(tot_noise_counts_ring_sgcl, ddof=1)
-    #print("Apertures sampled:", len(tot_noise_counts_ring))
-    #print("Measured noise ring", measured_noise_ring)
-    
-    return measured_noise_ring, nr_ring
-
-def measure_noise_wedge_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                         sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                         aperture, ap_sz, rotation_map, tele, disk_region, nr_angle=None, region_len_r=None, corrections=True, verbose=False):
-    
-    if nr_angle is None:
-        # fix the nr angle such that we sample 30 apertures
-        if tele == "LUVA":
-            if disk_region == "struct":
-                nr_angle = 22
-            elif disk_region == "smooth":
-                nr_angle = 11.5
-        elif tele == "LUVB":
-            if disk_region == "struct":
-                nr_angle = 32.
-            elif disk_region == "smooth":
-                nr_angle = 15.5
-    else:
-        #print("NR angle:", nr_angle)
-        pass
-        
-    ## define noise region
-    ### wedge  region
-    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region, region_len_r=region_len_r)
-    nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-    nr_wedge_ref = region_wedge(im, ref_signal_i, ref_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region, region_len_r=region_len_r)
-    nr_wedge_ref_opp = get_opposite_wedge_region(nr_wedge_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
-
-    if corrections:
-        #### do an r^2 correction on the wedge  region
-        nr_wedge_sci = r2_correction(nr_wedge_sci)
-        nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
-        nr_wedge_ref = r2_correction(nr_wedge_ref)
-        nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
-        
-        #### do an azimuthal correction on the wedge  region
-        nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
-        nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
-        nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
-        nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
-    
-    ## measure noise
-    counts_per_ap_nr_wedge_sci, ap_coords_nr_wedge_sci = sum_apertures_in_region(nr_wedge_sci, aperture, ap_sz)
-    counts_per_ap_nr_wedge_sci_opp, ap_coords_nr_wedge_sci_opp = sum_apertures_in_region(nr_wedge_sci_opp, aperture, ap_sz)
-    counts_per_ap_nr_wedge_ref, ap_coords_nr_wedge_ref = sum_apertures_in_region(nr_wedge_ref, aperture, ap_sz)
-    counts_per_ap_nr_wedge_ref_opp, ap_coords_nr_wedge_ref_opp = sum_apertures_in_region(nr_wedge_ref_opp, aperture, ap_sz)
-    
-    
-    tot_sci_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_sci, counts_per_ap_nr_wedge_sci_opp))
-    tot_ref_ap_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_ref, counts_per_ap_nr_wedge_ref_opp))
-    
-    
-    
-    ##### check if sci and ref regions have equal number of apertures sampled
-    if len(tot_sci_ap_counts_wedge) == len(tot_ref_ap_counts_wedge):
-        pass
-    elif len(tot_sci_ap_counts_wedge) > len(tot_ref_ap_counts_wedge):
-        num_inds_to_cut = len(tot_sci_ap_counts_wedge) - len(tot_ref_ap_counts_wedge)
-        tot_sci_ap_counts_wedge = tot_sci_ap_counts_wedge[:-num_inds_to_cut]
-    elif len(tot_sci_ap_counts_wedge) < len(tot_ref_ap_counts_wedge):
-        num_inds_to_cut = len(tot_ref_ap_counts_wedge) - len(tot_sci_ap_counts_wedge)
-        tot_ref_ap_counts_wedge = tot_ref_ap_counts_wedge[:-num_inds_to_cut]
-    else:
-        assert False, "Something is wrong"
-    
-    tot_noise_counts_wedge = tot_sci_ap_counts_wedge + -1 * tot_ref_ap_counts_wedge
-    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
-    #sigma clip
-    tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge, ddof=1)
-    
-    if verbose:
-        print("Apertures sampled:", len(tot_noise_counts_wedge))
-    #print("Measured noise wedge", measured_noise_wedge)
-    
-    return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp, nr_wedge_ref, nr_wedge_ref_opp
-
 def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle):
     
     region_ref = ~np.isnan(region_sci)
@@ -1598,181 +1511,6 @@ def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_
     
     
 
-def measure_noise_dynasquare_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j,
-                                 sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, 
-                                 aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
-    
-        
-    ## define noise region
-    ### dynasquare  region
-    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
-    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle)
-    
-    #nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-    #nr_dynasquare_ref_opp = get_opposite_dynasquare_region(nr_dynasquare_ref, im, ref_signal_i_opp, ref_signal_j_opp, ap_sz)
-    nr_dynasquare_sci_opp = np.nan * np.ones_like(nr_dynasquare_sci)
-    nr_dynasquare_ref_opp = np.nan * np.ones_like(nr_dynasquare_ref)
-    if corrections:
-        #### do an r^2 correction on the wedge  region
-        nr_dynasquare_sci = r2_correction(nr_dynasquare_sci)
-        #nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
-        nr_dynasquare_ref = r2_correction(nr_dynasquare_ref)
-        #nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
-        
-# =============================================================================
-#         #### do an azimuthal correction on the wedge  region
-#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
-#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
-#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
-#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
-# =============================================================================
-    
-    ## measure noise
-    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
-    #counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
-    counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
-    #counts_per_ap_nr_dynasquare_ref_opp, ap_coords_nr_dynasquare_ref_opp = sum_apertures_in_region(nr_dynasquare_ref_opp, aperture, ap_sz)
-    
-    
-    #tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
-    #tot_ref_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_ref, counts_per_ap_nr_dynasquare_ref_opp))
-    
-    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
-    tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref
-    
-    
-    
-    ##### check if sci and ref regions have equal number of apertures sampled
-    if len(tot_sci_ap_counts_dynasquare) == len(tot_ref_ap_counts_dynasquare):
-        pass
-    elif len(tot_sci_ap_counts_dynasquare) > len(tot_ref_ap_counts_dynasquare):
-        num_inds_to_cut = len(tot_sci_ap_counts_dynasquare) - len(tot_ref_ap_counts_dynasquare)
-        tot_sci_ap_counts_dynasquare = tot_sci_ap_counts_dynasquare[:-num_inds_to_cut]
-    elif len(tot_sci_ap_counts_dynasquare) < len(tot_ref_ap_counts_dynasquare):
-        num_inds_to_cut = len(tot_ref_ap_counts_dynasquare) - len(tot_sci_ap_counts_dynasquare)
-        tot_ref_ap_counts_dynasquare = tot_ref_ap_counts_dynasquare[:-num_inds_to_cut]
-    else:
-        assert False, "Something is wrong"
-    
-    
-    tot_noise_counts_dynasquare = tot_sci_ap_counts_dynasquare + -1 * tot_ref_ap_counts_dynasquare
-    #tot_noise_counts_dynasquare = np.abs(tot_sci_ap_counts_dynasquare) +  np.abs(tot_ref_ap_counts_dynasquare)
-    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
-    #sigma clip
-    tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
-    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare, ddof=1)
-    
-# =============================================================================
-#     if len(tot_noise_counts_dynasquare) > 0:
-#         print(len(tot_noise_counts_dynasquare))
-#         print(tot_sci_ap_counts_dynasquare, tot_ref_ap_counts_dynasquare)
-#         print(tot_noise_counts_dynasquare)
-#         print(np.std(tot_noise_counts_dynasquare, ddof=1))
-#         assert False
-# =============================================================================
-    
-    if verbose:
-        print("Apertures sampled:", len(tot_noise_counts_dynasquare))
-
-    #print("Measured noise wedge", measured_noise_wedge)
-    
-    return measured_noise_dynasquare, nr_dynasquare_sci, nr_dynasquare_sci_opp, nr_dynasquare_ref, nr_dynasquare_ref_opp, len(tot_noise_counts_dynasquare)
-
-def measure_noise_dynasquare_RDI(im, sci_signal_i, sci_signal_j,
-                                 sci_signal_i_opp, sci_signal_j_opp,
-                                 aperture, ap_sz, width, height,  corrections=True, verbose=False):
-    
-        
-    ## define noise region
-    ### dynasquare  region
-    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
-    #nr_dynasquare_sci_opp = get_opposite_dynasquare_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-    nr_dynasquare_sci_opp = np.nan * np.ones_like(nr_dynasquare_sci)
-# =============================================================================
-#     if corrections:
-#         #### do an r^2 correction on the wedge  region
-#         nr_wedge_sci = r2_correction(nr_wedge_sci)
-#         nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
-#         nr_wedge_ref = r2_correction(nr_wedge_ref)
-#         nr_wedge_ref_opp = r2_correction(nr_wedge_ref_opp)
-#         
-#         #### do an azimuthal correction on the wedge  region
-#         nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
-#         nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
-#         nr_wedge_ref = az_correction(nr_wedge_ref, rotation_map)
-#         nr_wedge_ref_opp = az_correction(nr_wedge_ref_opp, rotation_map)
-# =============================================================================
-    
-    ## measure noise
-    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
-    #counts_per_ap_nr_dynasquare_sci_opp, ap_coords_nr_dynasquare_sci_opp = sum_apertures_in_region(nr_dynasquare_sci_opp, aperture, ap_sz)
-    
-    
-    #tot_sci_ap_counts_dynasquare = np.concatenate((counts_per_ap_nr_dynasquare_sci, counts_per_ap_nr_dynasquare_sci_opp))
-    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
-
-    
-    
-    
-    
-    tot_noise_counts_dynasquare = tot_sci_ap_counts_dynasquare 
-    #tot_noise_counts_wedge = np.concatenate((tot_sci_ap_counts_wedge, -1*tot_ref_ap_counts_wedge))
-    #sigma clip
-    tot_noise_counts_dynasquare_sgcl = sigma_clip(tot_noise_counts_dynasquare)
-    measured_noise_dynasquare = np.nanstd(tot_noise_counts_dynasquare, ddof=1)
-    
-    if verbose:
-        print("Apertures sampled:", len(tot_noise_counts_dynasquare))
-    #print("Measured noise wedge", measured_noise_wedge)
-    
-    return measured_noise_dynasquare, nr_dynasquare_sci, nr_dynasquare_sci_opp, len(tot_noise_counts_dynasquare)
-
-def measure_noise_wedge_RDI(im, sci_signal_i, sci_signal_j,
-                         sci_signal_i_opp, sci_signal_j_opp,
-                         aperture, ap_sz, rotation_map, tele, disk_region, corrections=True):
-    
-    # fix the nr angle such that we sample 30 apertures
-    if tele == "LUVA":
-        if disk_region == "struct":
-            nr_angle = 28.
-        elif disk_region == "smooth":
-            nr_angle = 15.9
-    elif tele == "LUVB":
-        if disk_region == "struct":
-            nr_angle = 40.
-        elif disk_region == "smooth":
-            nr_angle = 20.5
-    
-    ## define noise region
-    ### wedge  region
-    nr_wedge_sci = region_wedge(im, sci_signal_i, sci_signal_j, aperture, ap_sz, rotation_map, nr_angle, tele, disk_region)
-    nr_wedge_sci_opp = get_opposite_wedge_region(nr_wedge_sci, im, sci_signal_i_opp, sci_signal_j_opp, ap_sz)
-
-    if corrections:
-        #### do an r^2 correction on the wedge  region
-        nr_wedge_sci = r2_correction(nr_wedge_sci)
-        nr_wedge_sci_opp = r2_correction(nr_wedge_sci_opp)
-        
-        #### do an azimuthal correction on the wedge  region
-        nr_wedge_sci = az_correction(nr_wedge_sci, rotation_map)
-        nr_wedge_sci_opp = az_correction(nr_wedge_sci_opp, rotation_map)
-    
-    ## measure noise
-    counts_per_ap_nr_wedge_sci, ap_coords_nr_wedge_sci = sum_apertures_in_region(nr_wedge_sci, aperture, ap_sz)
-    counts_per_ap_nr_wedge_sci_opp, ap_coords_nr_wedge_sci_opp = sum_apertures_in_region(nr_wedge_sci_opp, aperture, ap_sz)
-    
-    
-    tot_noise_counts_wedge = np.concatenate((counts_per_ap_nr_wedge_sci, counts_per_ap_nr_wedge_sci_opp))
-    
-    
-    #sigma clip
-    tot_noise_counts_wedge_sgcl = sigma_clip(tot_noise_counts_wedge)
-    measured_noise_wedge = np.nanstd(tot_noise_counts_wedge, ddof=1)
-    
-    print("Apertures sampled:", len(tot_noise_counts_wedge))
-    #print("Measured noise wedge", measured_noise_wedge)
-    
-    return measured_noise_wedge, nr_wedge_sci, nr_wedge_sci_opp
 
 def calc_CC_SNR_ADI(cc_map, cc_map_single, noise_map, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region_name):
     
@@ -1785,6 +1523,8 @@ def calc_CC_SNR_ADI(cc_map, cc_map_single, noise_map, sci_signal_i, sci_signal_j
     cc_sig = cc_map[sci_signal_i, sci_signal_j]
     
     
+    
+    
     noise_map[sci_signal_i-2*ap_sz:sci_signal_i+2*ap_sz+1, sci_signal_j-2*ap_sz:sci_signal_j+2*ap_sz+1] = 0
     if noise_region_name == "ring":
         noise_map[ref_signal_i-2*ap_sz:ref_signal_i+2*ap_sz+1, ref_signal_j-2*ap_sz:ref_signal_j+2*ap_sz+1] = 1
@@ -1793,19 +1533,21 @@ def calc_CC_SNR_ADI(cc_map, cc_map_single, noise_map, sci_signal_i, sci_signal_j
         noise_map[ref_signal_i_opp-2*ap_sz:ref_signal_i_opp+2*ap_sz+1, ref_signal_j_opp-2*ap_sz:ref_signal_j_opp+2*ap_sz+1] = 0
 
     
-    cc_noise_map = cc_map_single*noise_map
+    cc_noise_map = cc_map*noise_map
     zero_inds = np.where(cc_noise_map == 0)
     cc_noise_map[zero_inds] = np.nan
     
     
+    
     cc_noise_vals = cc_noise_map[~np.isnan(cc_noise_map)]
     
-    #cc_noise_sgcl = sigma_clip(cc_noise_vals)
-    
+        
     cc_noise = np.nanstd(cc_noise_vals, ddof=1)
-    #print(cc_noise_sgcl)
+
+    cc_SNR = np.abs(cc_sig - np.median(cc_noise_vals)) / cc_noise
+
     
-    cc_SNR = np.abs(cc_sig) / cc_noise
+    
     
     return cc_SNR
 
@@ -1835,42 +1577,6 @@ def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_
     
     return cc_SNR
 
-def measure_signal_ADI(sub_im, noise_map_sci, noise_map_ref, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture):
-    imsz, imsz = sub_im.shape
-    apsz, apsz = aperture.shape
-    ap_rad = int((apsz - 1)/2)
-    
-    sci_signal_mask = np.zeros_like(sub_im, dtype=bool)
-    sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
-    ref_signal_mask = np.zeros_like(sub_im, dtype=bool)
-    ref_signal_mask[ref_signal_i-ap_rad:ref_signal_i+ap_rad+1, ref_signal_j-ap_rad: ref_signal_j+ap_rad+1] = aperture
-    
-    sci_noise_vals = sub_im*noise_map_sci
-    zero_inds = np.where(sci_noise_vals == 0)
-    sci_noise_vals[zero_inds] = np.nan
-    
-    ref_noise_vals = sub_im*noise_map_ref
-    zero_inds = np.where(ref_noise_vals == 0)
-    ref_noise_vals[zero_inds] = np.nan
-
-
-    sci_nr_median = np.nanmedian(sci_noise_vals)
-# =============================================================================
-#     plt.imshow(sci_noise_vals)
-#     assert False
-# =============================================================================
-    ref_nr_median = np.nanmedian(ref_noise_vals)
-    
-
-    
-    sci_sig = sub_im[sci_signal_mask]
-    ref_sig = sub_im[ref_signal_mask]
-    
-    # subtract off background
-    sci_sig -= sci_nr_median
-    ref_sig -= ref_nr_median
-    tot_sig = np.sum(sci_sig) + -1*np.sum(ref_sig)
-    return np.abs(tot_sig)
 
 
 def calc_SNR_ttest(signal_apertures, noise_apertures):
@@ -1921,6 +1627,13 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     apsz, apsz = aperture.shape
     ap_rad = int((apsz - 1)/2)
     
+    imctr = (imsz -1)/2
+    
+    
+    sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_signal_i, sci_signal_j, imctr)
+    ref_signal_i_opp, ref_signal_j_opp  = get_opp_coords(ref_signal_i, ref_signal_j, imctr)
+    
+    
     sci_signal_mask = np.zeros_like(im, dtype=bool)
     sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
     ref_signal_mask = np.zeros_like(im, dtype=bool)
@@ -1935,8 +1648,15 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     
     
     ## define noise region
-    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height)
-    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle)
+    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, roll_angle)
+    
+# =============================================================================
+#     plot_im(nr_dynasquare_sci, sci_signal_i_opp, sci_signal_j_opp)
+#     plot_im(nr_dynasquare_ref, ref_signal_i_opp, ref_signal_j_opp)
+#     assert False
+# =============================================================================
+    
     
     if corrections:
         #### do an r^2 correction on the region
@@ -1995,8 +1715,10 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     total_noise = np.sqrt(noise_ttest**2 + signal_apertures)
     
     SNR_total = signal_ttest / total_noise
-    
-    
+    print("signal", signal_ttest)
+    print("ttest noise", total_noise)
+    print("classic noise", np.sqrt(np.std(noise_apertures, ddof=1)**2 + (signal_apertures -np.mean(noise_apertures))))
+    assert False
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
     return SNR_total, SNR_classic, total_noise, noise_map_sci
@@ -2054,42 +1776,5 @@ def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_sig
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
     return SNR_total, SNR_classic, total_noise, noise_map_sci
-
-
-    
-    
-    
-    
-    
-    
-
-
-def measure_signal_RDI(sub_im, noise_map_sci, sci_signal_i, sci_signal_j, aperture):
-    imsz, imsz = sub_im.shape
-    apsz, apsz = aperture.shape
-    ap_rad = int((apsz - 1)/2)
-    
-    sci_signal_mask = np.zeros_like(sub_im, dtype=bool)
-    sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
-    
-    sci_noise_vals = sub_im*noise_map_sci
-    zero_inds = np.where(sci_noise_vals == 0)
-    sci_noise_vals[zero_inds] = np.nan
-
-
-    sci_nr_median = np.nanmedian(sci_noise_vals)
-      
-    sci_sig = sub_im[sci_signal_mask]
-    
-    # subtract off background
-# =============================================================================
-#     sci_sig -= sci_nr_median
-# =============================================================================
-    
-    tot_sig = np.sum(sci_sig)
-    
-    return np.abs(tot_sig)
-
-
 
 

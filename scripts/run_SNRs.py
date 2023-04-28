@@ -22,8 +22,8 @@ try:
     planloc = str(sys.argv[4])
 except IndexError:
     
-    tele = "LUVB"
-    DI = "RDI"
+    tele = "LUVA"
+    DI = "ADI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -163,7 +163,7 @@ def process(config):
     
     
 
-    niter = 1000
+    niter = 200
     
     for iterations in range(niter):
         if iterations % 100 == 0:
@@ -182,8 +182,7 @@ def process(config):
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
-                                                                                                   uniform_disk=uniform_disk,
-                                                                                                   r2_disk=r2_disk)
+                                                                                                   uniform_disk=uniform_disk)
             sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
         elif DI == "RDI":
             
@@ -194,8 +193,7 @@ def process(config):
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
-                                                                                                   uniform_disk=uniform_disk,
-                                                                                                   r2_disk=r2_disk)
+                                                                                                   uniform_disk=uniform_disk)
             sci_out_i, sci_out_j = outside_loc
             
         
@@ -376,8 +374,8 @@ parallel = True
 if parallel == False:
     data = []
     
-    configs = [([1, 101/101., "00", "10", "uniform"])]
-    #configs = [([1, 101/10., "60", "20", "model"])]
+    configs = [([1, 101/101., "00", "100", "uniform"])]
+    configs = [([1, 101/101., "90", "5", "model"])]
     for config in configs:
         
         data_arr  = process(config)
