@@ -1533,21 +1533,18 @@ def calc_CC_SNR_ADI(cc_map, cc_map_single, noise_map, sci_signal_i, sci_signal_j
         noise_map[ref_signal_i_opp-2*ap_sz:ref_signal_i_opp+2*ap_sz+1, ref_signal_j_opp-2*ap_sz:ref_signal_j_opp+2*ap_sz+1] = 0
 
     
-    cc_noise_map = cc_map*noise_map
+    cc_noise_map = cc_map_single*noise_map
     zero_inds = np.where(cc_noise_map == 0)
     cc_noise_map[zero_inds] = np.nan
     
     
     
     cc_noise_vals = cc_noise_map[~np.isnan(cc_noise_map)]
-    
         
-    cc_noise = np.nanstd(cc_noise_vals, ddof=1)
+    cc_noise = np.sqrt(np.nanstd(cc_noise_vals, ddof=1)**2 + cc_sig)
 
     cc_SNR = np.abs(cc_sig - np.median(cc_noise_vals)) / cc_noise
 
-    
-    
     
     return cc_SNR
 
@@ -1568,10 +1565,7 @@ def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_
     
     cc_noise_vals = cc_noise_map[~np.isnan(cc_noise_map)]
     
-    cc_noise_sgcl = sigma_clip(cc_noise_vals)
-    
-    cc_noise = np.nanstd(cc_noise_sgcl, ddof=1)
-    #print(cc_noise_sgcl)
+    cc_noise = np.sqrt(np.nanstd(cc_noise_vals, ddof=1)**2 + cc_sig)
     
     cc_SNR = np.abs(cc_sig) / cc_noise
     
