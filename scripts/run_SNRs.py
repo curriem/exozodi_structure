@@ -10,9 +10,8 @@ import pandas as pd
 # define some parameters
 roll_angle = 30.
 add_noise = True
-add_star = False
+add_star = True
 planet_noise = True
-r2_disk = False
 
 
 try:
@@ -163,7 +162,7 @@ def process(config):
     
     
 
-    niter = 200
+    niter = 1000
     
     for iterations in range(niter):
         if iterations % 100 == 0:
