@@ -21,7 +21,7 @@ try:
     planloc = str(sys.argv[4])
 except IndexError:
     
-    tele = "LUVA"
+    tele = "LUVB"
     DI = "ADI"
     noise_region = None
     planloc = "planin"
@@ -162,9 +162,11 @@ def process(config):
     
     
 
-    niter = 1000
+    niter = 10000
     
     for iterations in range(niter):
+        
+        
         if iterations % 100 == 0:
             print(iterations)
         if iterations == 0:
@@ -174,8 +176,8 @@ def process(config):
     
         # synthesize images
         if DI == "ADI":
-            sci_im, ref_im, sci_planet_counts, ref_planet_counts,  \
-            expected_noise_planet, expected_noise_outside, outside_loc = ezf.synthesize_images_ADI2(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(zodis), aperture,
+            sci_im, ref_im,  \
+            expected_noise_planet, expected_noise_outside, outside_loc = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(zodis), aperture, roll_angle,
                                                                                                    target_SNR=7, pix_radius=ap_sz,
                                                                                                    verbose=syn_verbose, 
                                                                                                    add_noise=add_noise, 
@@ -194,9 +196,10 @@ def process(config):
                                                                                                    planet_noise=planet_noise, 
                                                                                                    uniform_disk=uniform_disk)
             sci_out_i, sci_out_j = outside_loc
-            
         
         
+
+        #assert False
         #assert False
         # get opposite coords
         imsz, imsz = sci_im.shape
@@ -225,7 +228,7 @@ def process(config):
         
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
-        
+
         
         # get expected noise
         expected_noise = np.sqrt(expected_noise_planet)
@@ -236,20 +239,27 @@ def process(config):
             
         
         if DI == "ADI":
-            SNR_before_hipass, SNR_classic_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
+#             SNR_before_hipass, SNR_classic_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
             
             SNR_after_hipass, SNR_classic_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
             
-            SNR_before_hipass_out, SNR_classic_before_hipass_out,  measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
+#             SNR_before_hipass_out, SNR_classic_before_hipass_out,  measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
             
-            SNR_after_hipass_out, SNR_classic_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
-            
-            
-            
+# =============================================================================
+#             SNR_after_hipass_out, SNR_classic_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_out_i, sci_out_j, ref_out_i, ref_out_j, 
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False, out=True)
+#             
+# =============================================================================
+            #print(expected_noise_out/measured_noise_after_hipass_out)
+        
+
             
             
         
@@ -266,41 +276,45 @@ def process(config):
             SNR_after_hipass_out, SNR_classic_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_out_i, sci_out_j, sci_out_i_opp, sci_out_j_opp,
                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
         
+
         
-        SNR_before_hipass_arr.append(SNR_before_hipass)
+        #SNR_before_hipass_arr.append(SNR_before_hipass)
         SNR_after_hipass_arr.append(SNR_after_hipass)
         SNR_classic_after_hipass_arr.append(SNR_classic_after_hipass)
         
         
         # cross correlation maps
         
-        if DI == "ADI":
-            cc_map_before_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask)
-            cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
-            cc_map_before_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im, valid_mask)
-            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-            
-            cc_SNR_before_hipass = ezf.calc_CC_SNR_ADI(cc_map_before_hipass, cc_map_before_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-            
-            
-        elif DI == "RDI":
-            cc_map_before_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im, valid_mask)
-            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-            
-            cc_SNR_before_hipass = ezf.calc_CC_SNR_RDI(cc_map_before_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
-            
-            
-        cc_SNRs_before_hipass.append(cc_SNR_before_hipass)
-                
-        cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
+# =============================================================================
+#         if DI == "ADI":
+#             #cc_map_before_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im, valid_mask)
+#             cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
+#             #cc_map_before_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im, valid_mask)
+#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+#             
+#             #cc_SNR_before_hipass = ezf.calc_CC_SNR_ADI(cc_map_before_hipass, cc_map_before_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+#             cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+#             
+#             
+#         elif DI == "RDI":
+#             #cc_map_before_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im, valid_mask)
+#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+#             
+#             #cc_SNR_before_hipass = ezf.calc_CC_SNR_RDI(cc_map_before_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+#             cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+#             
+#         print("Time to calc CC:", time.time() - now)
+# 
+#         #cc_SNRs_before_hipass.append(cc_SNR_before_hipass)
+#                 
+#         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
+# =============================================================================
             
         
-        measured_noise_before_hipass_arr.append(measured_noise_before_hipass)
+        #measured_noise_before_hipass_arr.append(measured_noise_before_hipass)
         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
-        measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
-        measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
+        #measured_noise_before_hipass_out_arr.append(measured_noise_before_hipass_out)
+        #measured_noise_after_hipass_out_arr.append(measured_noise_after_hipass_out)
             
             
         
@@ -328,7 +342,7 @@ def process(config):
     std_noise_after_hipass_out = np.nanstd(measured_noise_after_hipass_out_arr, ddof=1)
 
     
-    verbose = False
+    verbose = True
     if verbose:
         print("Median SNR before hipass:", median_SNR_before_hipass)
         print("Median SNR after hipass:", median_SNR_after_hipass)
@@ -340,6 +354,7 @@ def process(config):
         print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise)
         print("Median measured/expected noise before hipass outside:", median_measured_noise_before_hipass_out/expected_noise_out)
         print("Median measured/expected noise after hipass outside:", median_measured_noise_after_hipass_out/expected_noise_out)
+
         
         plt.figure()
         plt.hist(SNR_after_hipass_arr, bins=30)
@@ -367,14 +382,14 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
     data = []
     
     configs = [([1, 101/101., "00", "100", "uniform"])]
-    configs = [([1, 101/101., "90", "5", "model"])]
+    #configs = [([1, 101/101., "90", "5", "model"])]
     for config in configs:
         
         data_arr  = process(config)
