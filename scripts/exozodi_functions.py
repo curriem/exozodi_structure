@@ -948,10 +948,17 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     
     
     
-    sci_sig_CR = sub_im_total * sci_aperture_mask
-    ref_sig_CR = sub_im_total * ref_aperture_mask
+# =============================================================================
+#     sci_sig_CR = sub_im_total * sci_aperture_mask
+#     ref_sig_CR = sub_im_total * ref_aperture_mask
+#     
+#     signal_apertures = np.sum(sci_sig_CR) + -1*np.sum(ref_sig_CR)
+# =============================================================================
     
-    signal_apertures = np.sum(sci_sig_CR) + -1*np.sum(ref_sig_CR)
+    sci_sig_CR = sci_plan_im * sci_aperture_mask
+    ref_sig_CR = ref_plan_im * ref_aperture_mask
+    
+    signal_apertures = np.sum(sci_sig_CR) + np.sum(ref_sig_CR)
     
     
     
