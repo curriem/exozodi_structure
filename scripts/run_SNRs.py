@@ -21,8 +21,8 @@ try:
     planloc = str(sys.argv[4])
 except IndexError:
     
-    tele = "LUVB"
-    DI = "ADI"
+    tele = "LUVA"
+    DI = "RDI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -187,15 +187,18 @@ def process(config):
             sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
         elif DI == "RDI":
             
-            sci_im, ref_im, sci_planet_counts, \
-                expected_noise_planet, expected_noise_outside, outside_loc = ezf.synthesize_images_RDI2(im_dir, sci_signal_i, sci_signal_j, float(zodis), aperture,
+            sci_im, ref_im, \
+                expected_noise_planet, expected_noise_outside, outside_loc = ezf.synthesize_images_RDI3(im_dir, sci_signal_i, sci_signal_j, float(zodis), aperture,
                                                                                                    target_SNR=7, pix_radius=ap_sz, 
                                                                                                    verbose=syn_verbose,
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
-                                                                                                   uniform_disk=uniform_disk)
+                                                                                                   uniform_disk=uniform_disk,
+                                                                                                   zerodisk=True)
             sci_out_i, sci_out_j = outside_loc
+            
+            
         
         
 
@@ -225,6 +228,13 @@ def process(config):
         
         # perform subtraction 
         sub_im = sci_im - ref_im
+        
+# =============================================================================
+#         ezf.plot_im(sci_im, sci_signal_i, sci_signal_j)
+#         ezf.plot_im(ref_im, sci_signal_i, sci_signal_j)
+# 
+#         assert False
+# =============================================================================
         
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
@@ -264,18 +274,22 @@ def process(config):
             
         
         elif DI == "RDI":
-            SNR_before_hipass, SNR_classic_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp,
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
+#             SNR_before_hipass, SNR_classic_before_hipass, measured_noise_before_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp,
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+# =============================================================================
             
             SNR_after_hipass, SNR_classic_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,sci_signal_i_opp, sci_signal_j_opp,
                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
             
-            SNR_before_hipass_out, SNR_classic_before_hipass_out, measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im, sci_out_i, sci_out_j, sci_out_i_opp, sci_out_j_opp,
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
-            
-            SNR_after_hipass_out, SNR_classic_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_out_i, sci_out_j, sci_out_i_opp, sci_out_j_opp,
-                                                                                                    aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
-        
+# =============================================================================
+#             SNR_before_hipass_out, SNR_classic_before_hipass_out, measured_noise_before_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im, sci_out_i, sci_out_j, sci_out_i_opp, sci_out_j_opp,
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+#             
+#             SNR_after_hipass_out, SNR_classic_after_hipass_out, measured_noise_after_hipass_out, noise_map_sci_out = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_out_i, sci_out_j, sci_out_i_opp, sci_out_j_opp,
+#                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+#         
+# =============================================================================
 
         
         #SNR_before_hipass_arr.append(SNR_before_hipass)
@@ -388,7 +402,7 @@ parallel = True
 if parallel == False:
     data = []
     
-    configs = [([1, 101/101., "00", "100", "uniform"])]
+    configs = [([1, 101/101., "00", "1", "uniform"])]
     #configs = [([1, 101/101., "90", "5", "model"])]
     for config in configs:
         
