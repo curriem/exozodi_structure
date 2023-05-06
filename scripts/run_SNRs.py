@@ -58,7 +58,7 @@ if tele == "LUVB":
     
     
 ap_sz_arr = np.arange(1, 2, 1)
-filter_sz_arr_pix = np.arange(1, 102, 1)
+filter_sz_arr_pix = np.arange(1, 51, 1)
 im_sz = 101
 filter_sz_arr_fourier = im_sz / filter_sz_arr_pix
 #filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
