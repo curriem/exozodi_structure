@@ -971,7 +971,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     
     ## define noise region
     nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_signal_i_opp, sci_signal_j_opp, aperture, pix_radius, width, height, opposite=True)
-    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, pix_radius, roll_angle)
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, pix_radius, roll_angle, opposite=True)
     
 # =============================================================================
 #     ## define noise region
@@ -1009,7 +1009,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     
     ## define noise region
     nr_dynasquare_sci_out = region_dynasquare(sci_im_total, sci_signal_i_opp_out, sci_signal_j_opp_out, aperture, pix_radius, width, height, opposite=True)
-    nr_dynasquare_ref_out = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp_out, sci_signal_j_opp_out, ref_signal_i_opp_out, ref_signal_j_opp_out, aperture, pix_radius, roll_angle)
+    nr_dynasquare_ref_out = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp_out, sci_signal_j_opp_out, ref_signal_i_opp_out, ref_signal_j_opp_out, aperture, pix_radius, roll_angle, opposite=True)
     
 # =============================================================================
 #     ## define noise region
@@ -1069,7 +1069,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     
     
 
-    return science_image, reference_image, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
+    return science_image, reference_image, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j), tot_tint
 
 
     
@@ -1992,7 +1992,7 @@ def get_planet_locations_and_info(roll_angle, planet_pos_mas, pix_radius, im_dir
 
 
 
-def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle):
+def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, aperture, ap_sz, roll_angle, opposite=False):
     
     region_ref = ~np.isnan(region_sci)
     region_ref = region_ref.astype(float)
@@ -2000,7 +2000,8 @@ def rotate_region(region_sci, im, sci_signal_i, sci_signal_j, ref_signal_i, ref_
     
     region_ref = rotate(region_ref, -roll_angle, order=0, reshape=False)
     
-    region_ref[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
+    if opposite is False:
+        region_ref[ref_signal_i-ap_sz:ref_signal_i+ap_sz+1, ref_signal_j-ap_sz:ref_signal_j+ap_sz+1] = ~aperture
     
     zero_inds = np.where(region_ref == 0)
     region_ref[zero_inds] = np.nan
@@ -2143,7 +2144,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     
     ## define noise region
     nr_dynasquare_sci = region_dynasquare(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
-    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, roll_angle)
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, roll_angle, opposite=True)
     
 # =============================================================================
 #     nr_dynasquare_sci = region_dynasquare(im, sci_signal_i, sci_signal_j, aperture, ap_sz, width, height, opposite=False)
