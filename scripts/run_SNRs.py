@@ -104,23 +104,7 @@ def process(config):
     else:
         assert False, "disk type not recognized"
         
-# =============================================================================
-#     # get height and width:
-#     unif_bool = hw_df["uniform_disk"].isin([int(uniform_disk)])
-#     ap_sz_bool = hw_df["ap_sz"].isin([float(ap_sz)])
-#     filters_ints = hw_df["filter_sz_pix"].values
-#     filters_ints = np.rint(filters_ints).astype(int)
-#     filter_bool = (filters_ints == int(im_sz/filter_sz))
-#     incl_bool =  hw_df["incl"].isin([float(incl)])
-#     zodis_bool = hw_df["zodis"].isin([float(zodis)])
-#     tot_bool = unif_bool & ap_sz_bool & filter_bool & incl_bool & zodis_bool
-#     
-#     height = int(hw_df["height"][tot_bool].values[0])
-#     width = int(hw_df["width"][tot_bool].values[0])
-# =============================================================================
-    
 
-    
     
     
     # get planet locations in sci and ref images
@@ -218,14 +202,7 @@ def process(config):
         
         # perform subtraction 
         sub_im = sci_im - ref_im
-# =============================================================================
-#         
-#         ezf.plot_im(sci_im, sci_signal_i, sci_signal_j)
-#         ezf.plot_im(ref_im, sci_signal_i, sci_signal_j)
-#         ezf.plot_im(sub_im, sci_signal_i, sci_signal_j)
-#         assert False
-# =============================================================================
-        
+
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
 
@@ -262,32 +239,30 @@ def process(config):
         
         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
         signal_arr.append(signal_counts)
-# =============================================================================
-#         
-#         # cross correlation maps
-#         
-#         if DI == "ADI":
-#             cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
-#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-#             
-#             cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-#             
-#             
-#         elif DI == "RDI":
-#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-#             
-#             cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
-#             
-# 
-#                 
-#         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
-#             
-#         
-#         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
-# 
-#             
-#             
-# =============================================================================
+        
+        # cross correlation maps
+        
+        if DI == "ADI":
+            cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
+            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+            
+            cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+            
+            
+        elif DI == "RDI":
+            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+            
+            cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+            
+
+                
+        cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
+            
+        
+        measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
+
+            
+            
         
         
         

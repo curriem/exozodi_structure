@@ -812,8 +812,8 @@ def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     return science_image, reference_image, sci_planet_counts, ref_planet_counts, tot_noise_counts, tot_noise_counts_out, (sci_out_i, sci_out_j, ref_out_i, ref_out_j)
 
 
-def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, zodis, aperture, roll_angle,
-                          target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
+def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, incl, zodis, aperture, roll_angle,
+                          target_SNR=7, tot_tint=None, pix_radius=1, verbose=False, planet_noise=True, 
                           add_noise=True, add_star=True, uniform_disk=False, simple_planet=False):
     """
     function to synthesize images for ADI
@@ -925,6 +925,29 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     ref_disk_im_fits = pyfits.open(im_dir + "/DET/ref_disk.fits")
     ref_disk_im = ref_disk_im_fits[0].data[0, 0]
     
+    sub_disk_im = sci_disk_im - ref_disk_im
+
+    
+# =============================================================================
+#     plt.figure()
+#     plt.imshow(sci_disk_im*1000)
+#     plt.colorbar()
+#     
+#     plt.figure()
+#     plt.imshow(ref_disk_im*1000)
+#     plt.colorbar()
+#     plt.figure()
+#     plt.imshow((sci_disk_im - ref_disk_im)*1000)
+#     plt.colorbar()
+#     plt.title("loc1: {}, loc2: {}".format(round(np.sum(sub_disk_im*1000*sci_aperture_mask)), round(np.sum(sub_disk_im*1000*ref_aperture_mask))))
+#     
+#     
+#     
+#     
+#     assert False
+# =============================================================================
+    
+    
 
     if uniform_disk:
         
@@ -976,7 +999,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
 # =============================================================================
 #     ## define noise region
 #     nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, width, height, opposite=False)
-#     nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, aperture, pix_radius, roll_angle)
+#     nr_dynasquare_ref = rotate_fregion(nr_dynasquare_sci, ref_im_total, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, aperture, pix_radius, roll_angle)
 # =============================================================================
 
 
@@ -994,13 +1017,27 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     #signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
 
     noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
-    total_signal_CR = signal_apertures #- noise_ttest#np.mean(noise_apertures)
-    total_noise_CR = noise_background + signal_apertures
+    
+    
+    total_signal_CR = signal_apertures  #- noise_ttest#np.mean(noise_apertures)
+    if incl == 0 and (zodis < 10):
+        total_signal_CR  = total_signal_CR + np.sum(sub_disk_im*sci_aperture_mask) + -1*np.sum(sub_disk_im*ref_aperture_mask)
+    total_noise_CR = noise_background + total_signal_CR
     total_bkgr_CR = noise_background
     
-    tot_tint = target_SNR**2 * total_noise_CR / total_signal_CR**2
+    if target_SNR is None and tot_tint is None:
+        assert False, "target_SNR and tot_tint are both None. Set one to something."
+    elif target_SNR is not None and tot_tint is not None:
+        assert False, "target_SNR and tot_tint cannot both be set!"
+    elif target_SNR is not None and tot_tint is None:
+        tot_tint = target_SNR**2 * total_noise_CR / total_signal_CR**2
+    elif target_SNR is None and tot_tint is not None:
+        pass
+    else:
+        assert False, "Something is wrong... check target_SNR and tot_tint"
+        
     
-    
+
     
     # get noise estimate for outside
     
@@ -1035,8 +1072,13 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     total_bkgr_CR_out = noise_background_out
     
     
+
     
     if verbose:
+        print("signal CR:", total_signal_CR)
+        print("noise CR:", total_noise_CR)
+
+        
         print("Total Signal Counts:", total_signal_CR*tot_tint)
         print("Total Background Counts:", (total_bkgr_CR )*tot_tint)
         
@@ -2101,9 +2143,11 @@ def calc_SNR_ttest(signal_apertures, noise_apertures):
     #print("x1-x2", (x1 - x2))
     #print("ttest denom:", (s12*np.sqrt(1/n1 + 1/n2)))
     SNR_ttest = (x1 - x2) / (s12*np.sqrt(1/n1 + 1/n2))
-    #print("SNR ttest", SNR_ttest)
+
+
     
     signal_ttest = (x1 - x2)
+    #signal_ttest = x1
     noise_ttest = (s12*np.sqrt(1/n1 + 1/n2))
     
     return signal_ttest, noise_ttest
@@ -2113,7 +2157,7 @@ def calc_SNR_ttest(signal_apertures, noise_apertures):
 
 
 def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                       aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False, out=False):
+                       aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False, out=False):
     
     
 
@@ -2211,16 +2255,30 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     #print((signal_apertures - np.mean(noise_apertures)) / np.sqrt(measured_noise**2 + signal_apertures))
     
     signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
-    
+# =============================================================================
+#     print("noise ttest", noise_ttest)
+#     print("signal_apertures", signal_apertures)
+# =============================================================================
+
     total_noise = np.sqrt(noise_ttest**2 + signal_apertures)
+# =============================================================================
+#     print("total_noise", total_noise)
+#     print("signal_apertures / total_noise", signal_apertures / total_noise)
+# =============================================================================
+    
     if out is True:
         total_noise = noise_ttest
     
     SNR_total = signal_ttest / total_noise
+    #SNR_total = signal_apertures / total_noise
+# =============================================================================
+#     print("SNR_total", SNR_total)
+#     assert False
+# =============================================================================
 
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
-    return SNR_total, SNR_classic, total_noise, noise_map_sci
+    return SNR_total, SNR_classic, signal_ttest, total_noise, noise_map_sci
 
 def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp, 
                        aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
