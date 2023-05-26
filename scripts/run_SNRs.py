@@ -24,7 +24,7 @@ except IndexError:
     tele = "LUVB"
     DI = "ADI"
     noise_region = None
-    planloc = "planout"
+    planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
 
 matched_filter_dir = "../matched_filter_library/"
@@ -148,6 +148,8 @@ def process(config):
     measured_noise_before_hipass_out_arr = []
     measured_noise_after_hipass_out_arr = []
     
+    signal_arr = []
+    
     
 
     niter = 1000
@@ -165,8 +167,8 @@ def process(config):
         # synthesize images
         if DI == "ADI":
             sci_im, ref_im,  \
-            expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(zodis), aperture, roll_angle,
-                                                                                                   target_SNR=7, pix_radius=ap_sz,
+            expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
+                                                                                                   target_SNR=500, pix_radius=ap_sz,
                                                                                                    verbose=syn_verbose, 
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
@@ -238,7 +240,7 @@ def process(config):
         
         if DI == "ADI":
            
-            SNR_after_hipass, SNR_classic_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+            SNR_after_hipass, SNR_classic_after_hipass, signal_counts, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
             
 
@@ -258,29 +260,34 @@ def process(config):
         SNR_classic_after_hipass_arr.append(SNR_classic_after_hipass)
         
         
-        # cross correlation maps
-        
-        if DI == "ADI":
-            cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
-            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-            
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
-            
-            
-        elif DI == "RDI":
-            cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
-            
-            cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
-            
-
-                
-        cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
-            
-        
         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
-
-            
-            
+        signal_arr.append(signal_counts)
+# =============================================================================
+#         
+#         # cross correlation maps
+#         
+#         if DI == "ADI":
+#             cc_map_after_hipass = ezf.calculate_cc_map(matched_filter_datacube, sub_im_hipass, valid_mask)
+#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+#             
+#             cc_SNR_after_hipass = ezf.calc_CC_SNR_ADI(cc_map_after_hipass, cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, ref_signal_i_opp, ref_signal_j_opp, ap_sz, noise_region)
+#             
+#             
+#         elif DI == "RDI":
+#             cc_map_after_hipass_single = ezf.calculate_cc_map(matched_filter_datacube_single, sub_im_hipass, valid_mask)
+#             
+#             cc_SNR_after_hipass = ezf.calc_CC_SNR_RDI(cc_map_after_hipass_single, noise_map_sci, sci_signal_i, sci_signal_j, ap_sz, noise_region)
+#             
+# 
+#                 
+#         cc_SNRs_after_hipass.append(cc_SNR_after_hipass)
+#             
+#         
+#         measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
+# 
+#             
+#             
+# =============================================================================
         
         
         
@@ -297,6 +304,7 @@ def process(config):
     median_measured_noise_before_hipass_out = np.nanmedian(measured_noise_before_hipass_out_arr)
     median_measured_noise_after_hipass_out = np.nanmedian(measured_noise_after_hipass_out_arr)
     
+    median_signal = np.nanmedian(signal_arr)
     
     
 
@@ -318,21 +326,30 @@ def process(config):
         print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise)
         print("Median measured/expected noise before hipass outside:", median_measured_noise_before_hipass_out/expected_noise_out)
         print("Median measured/expected noise after hipass outside:", median_measured_noise_after_hipass_out/expected_noise_out)
-
+        print("Median signal:", median_signal)
         
         plt.figure()
         plt.hist(SNR_after_hipass_arr, bins=30)
         plt.axvline(np.nanmedian(SNR_after_hipass_arr), color="k")
         plt.axvline(np.nanmean(SNR_after_hipass_arr), color="k", linestyle=":")
-        plt.title("Median: {}, Mean: {}".format(np.nanmedian(SNR_after_hipass_arr), np.nanmean(SNR_after_hipass_arr)))
+        plt.title("SNR ttest, Median: {}, Mean: {}".format(np.nanmedian(SNR_after_hipass_arr), np.nanmean(SNR_after_hipass_arr)))
         plt.show()
         
         plt.figure()
         plt.hist(SNR_classic_after_hipass_arr, bins=30)
         plt.axvline(np.nanmedian(SNR_classic_after_hipass_arr), color="k")
         plt.axvline(np.nanmean(SNR_classic_after_hipass_arr), color="k", linestyle=":")
-        plt.title("Median: {}, Mean: {}".format(np.nanmedian(SNR_classic_after_hipass_arr), np.nanmean(SNR_classic_after_hipass_arr)))
+        plt.title("SNR classic, Median: {}, Mean: {}".format(np.nanmedian(SNR_classic_after_hipass_arr), np.nanmean(SNR_classic_after_hipass_arr)))
         plt.show()
+        
+        plt.figure()
+        plt.hist(signal_arr, bins=30)
+        plt.axvline(np.nanmedian(signal_arr), color="k")
+        plt.axvline(np.nanmean(signal_arr), color="k", linestyle=":")
+        plt.title("signal, Median: {}, Mean: {}".format(np.nanmedian(signal_arr), np.nanmean(signal_arr)))
+        plt.show()
+        
+        
 
     return_arr = np.array([uniform_disk, ap_sz, im_sz/filter_sz, int(incl), int(zodis), 
                            median_SNR_before_hipass, median_SNR_after_hipass, median_SNR_classic_after_hipass,
@@ -353,7 +370,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 101/10., "00", "1", "uniform"])]
-    configs = [([1, 101/5., "60", "50", "model"])]
+    configs = [([1, 101/4., "00", "1", "model"])]
     for config in configs:
         
         data_arr  = process(config)
