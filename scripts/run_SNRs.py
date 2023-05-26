@@ -152,7 +152,7 @@ def process(config):
         if DI == "ADI":
             sci_im, ref_im,  \
             expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
-                                                                                                   target_SNR=500, pix_radius=ap_sz,
+                                                                                                   target_SNR=7, pix_radius=ap_sz,
                                                                                                    verbose=syn_verbose, 
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
