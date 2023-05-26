@@ -22,7 +22,7 @@ try:
 except IndexError:
     
     tele = "LUVB"
-    DI = "ADI"
+    DI = "RDI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -152,7 +152,7 @@ def process(config):
         if DI == "ADI":
             sci_im, ref_im,  \
             expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
-                                                                                                   target_SNR=500, pix_radius=ap_sz,
+                                                                                                   target_SNR=7, pix_radius=ap_sz,
                                                                                                    verbose=syn_verbose, 
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
@@ -202,9 +202,11 @@ def process(config):
         
         # perform subtraction 
         sub_im = sci_im - ref_im
+        
 
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
+
 
         
         # get expected noise
@@ -227,7 +229,7 @@ def process(config):
         
         elif DI == "RDI":
          
-            SNR_after_hipass, SNR_classic_after_hipass, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im_hipass, sci_signal_i, sci_signal_j,sci_signal_i_opp, sci_signal_j_opp,
+            SNR_after_hipass, SNR_classic_after_hipass, signal_counts, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_RDI(sub_im, sub_im_hipass, sci_signal_i, sci_signal_j,sci_signal_i_opp, sci_signal_j_opp,
                                                                                                     aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
             
 
@@ -345,7 +347,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 101/10., "00", "1", "uniform"])]
-    configs = [([1, 101/4., "00", "1", "model"])]
+    configs = [([1, 101/101., "00", "100", "uniform"])]
     for config in configs:
         
         data_arr  = process(config)
