@@ -1633,8 +1633,8 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     #signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
 
     noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
-    total_signal_CR = signal_apertures #- noise_ttest#np.mean(noise_apertures)
-    total_noise_CR = noise_background + signal_apertures
+    total_signal_CR = signal_apertures# + np.sum(sci_disk_im*sci_aperture_mask) 
+    total_noise_CR = noise_background + total_signal_CR
     total_bkgr_CR = noise_background
     
     tot_tint = target_SNR**2 * total_noise_CR / total_signal_CR**2
@@ -2280,14 +2280,14 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     
     return SNR_total, SNR_classic, signal_ttest, total_noise, noise_map_sci
 
-def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp, 
+def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp, 
                        aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
     
-    imsz, imsz = im.shape
+    imsz, imsz = im_hipass.shape
     apsz, apsz = aperture.shape
     ap_rad = int((apsz - 1)/2)
     
-    sci_signal_mask = np.zeros_like(im, dtype=bool)
+    sci_signal_mask = np.zeros_like(im_hipass, dtype=bool)
     sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
     
     sci_sig = im[sci_signal_mask]
@@ -2301,7 +2301,7 @@ def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_sig
     
     
     ## define noise region
-    nr_dynasquare_sci = region_dynasquare(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
+    nr_dynasquare_sci = region_dynasquare(im_hipass, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
     
     if corrections:
         #### do an r^2 correction on the region
@@ -2332,6 +2332,6 @@ def calc_SNR_ttest_RDI(im, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_sig
     
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
-    return SNR_total, SNR_classic, total_noise, noise_map_sci
+    return SNR_total, SNR_classic, signal_ttest, total_noise, noise_map_sci
 
 
