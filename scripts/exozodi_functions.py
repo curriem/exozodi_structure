@@ -1593,7 +1593,7 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     
     
     
-    sci_sig_CR = sub_im_total * sci_aperture_mask
+    sci_sig_CR = sci_plan_im * sci_aperture_mask
     
     signal_apertures = np.sum(sci_sig_CR)
     
@@ -2290,7 +2290,7 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     sci_signal_mask = np.zeros_like(im_hipass, dtype=bool)
     sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
     
-    sci_sig = im[sci_signal_mask]
+    sci_sig = im_hipass[sci_signal_mask]
     
     signal_apertures = np.sum(sci_sig) 
     

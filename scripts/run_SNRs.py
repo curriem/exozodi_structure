@@ -136,7 +136,7 @@ def process(config):
     
     
 
-    niter = 1000
+    niter = 500
     
     for iterations in range(niter):
         
@@ -347,7 +347,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 101/10., "00", "1", "uniform"])]
-    configs = [([1, 101/101., "00", "100", "uniform"])]
+    configs = [([1, 101/2., "00", "1", "uniform"])]
     for config in configs:
         
         data_arr  = process(config)
