@@ -68,6 +68,7 @@ longitude = "00"
 tot_tint_arr = np.logspace(2, 8, 100)
 
 
+
 configs = []
 
 df_fl = 'data_{}_{}'.format(tele, DI)
@@ -91,7 +92,7 @@ import time
 def process(config):
     start_time = time.time()
     
-    ap_sz, filter_sz, incl, zodis, disk_type, target_SNR = config
+    ap_sz, filter_sz, incl, zodis, disk_type, tot_tint = config
     print(disk_type, ap_sz, filter_sz, incl, zodis)
     
     if disk_type == "uniform":
@@ -137,7 +138,7 @@ def process(config):
         # synthesize images
         sci_im, ref_im,  \
         expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
-                                                                                               target_SNR=None, tot_tint=10, pix_radius=ap_sz,
+                                                                                               target_SNR=None, tot_tint=tot_tint, pix_radius=ap_sz,
                                                                                                verbose=syn_verbose, 
                                                                                                add_noise=add_noise, 
                                                                                                add_star=add_star, 
@@ -236,7 +237,7 @@ def process(config):
     return_arr = np.array([im_sz/filter_sz, int(incl), int(zodis), 
                            median_SNR_after_hipass, median_SNR_classic_after_hipass,
                            median_measured_noise_after_hipass, expected_noise,
-                           target_SNR, tot_tint])
+                           tot_tint])
     
     end_time = time.time()
     return return_arr
@@ -264,7 +265,7 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
+    results = Parallel(n_jobs=160)(delayed(process)(config) for config in configs)
     
     header = "filter_sz_pix incl zodis median_SNR_after_hipass median_SNR_classic_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
