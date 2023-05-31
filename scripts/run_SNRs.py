@@ -136,7 +136,7 @@ def process(config):
     
     
 
-    niter = 500
+    niter = 1000
     
     for iterations in range(niter):
         
