@@ -2116,7 +2116,7 @@ def calc_CC_SNR_RDI(cc_map, noise_map, sci_signal_i, sci_signal_j, ap_sz, noise_
 
 
 
-def calc_SNR_ttest(signal_apertures, noise_apertures):
+def calc_SNR_ttest(signal_apertures, noise_apertures, DI):
     
     # t-test:
     # SNR = (x1 - x2)/(s2*sqrt(1+1/n2))
@@ -2144,10 +2144,12 @@ def calc_SNR_ttest(signal_apertures, noise_apertures):
     #print("ttest denom:", (s12*np.sqrt(1/n1 + 1/n2)))
     SNR_ttest = (x1 - x2) / (s12*np.sqrt(1/n1 + 1/n2))
 
-
     
-    signal_ttest = (x1 - x2)
-    #signal_ttest = x1
+    
+    if DI == "ADI":
+        signal_ttest = (x1 - x2)
+    elif DI == "RDI":
+        signal_ttest = np.abs(x1 - np.abs(x2))
     noise_ttest = (s12*np.sqrt(1/n1 + 1/n2))
     
     return signal_ttest, noise_ttest
@@ -2254,7 +2256,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     
     #print((signal_apertures - np.mean(noise_apertures)) / np.sqrt(measured_noise**2 + signal_apertures))
     
-    signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
+    signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures, "ADI")
 # =============================================================================
 #     print("noise ttest", noise_ttest)
 #     print("signal_apertures", signal_apertures)
@@ -2322,7 +2324,7 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     SNR_classic = np.abs((signal_apertures -np.mean(noise_apertures)))  / np.sqrt(np.std(noise_apertures, ddof=1)**2 + (signal_apertures -np.mean(noise_apertures)))
 
     
-    signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
+    signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures, "RDI")
     
     total_noise = np.sqrt(noise_ttest**2 + signal_apertures)
 

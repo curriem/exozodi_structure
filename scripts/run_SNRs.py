@@ -58,7 +58,7 @@ if tele == "LUVB":
     
     
 ap_sz_arr = np.arange(1, 2, 1)
-filter_sz_arr_pix = np.arange(1, 51, 1)
+filter_sz_arr_pix = np.arange(2, 51, 1)
 im_sz = 101
 filter_sz_arr_fourier = im_sz / filter_sz_arr_pix
 #filter_sz_arr = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -207,7 +207,11 @@ def process(config):
         # perform high pass filter on the sub im
         sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
 
-
+# =============================================================================
+#         ezf.plot_im(sub_im, sci_signal_i, sci_signal_j)
+#         ezf.plot_im(sub_im_hipass, sci_signal_i, sci_signal_j)
+#         #assert False
+# =============================================================================
         
         # get expected noise
         expected_noise = np.sqrt(expected_noise_planet)
@@ -347,7 +351,7 @@ if parallel == False:
     data = []
     
     #configs = [([1, 101/10., "00", "1", "uniform"])]
-    configs = [([1, 101/2., "00", "1", "uniform"])]
+    configs = [([1, 101/101., "00", "10", "uniform"])]
     for config in configs:
         
         data_arr  = process(config)
