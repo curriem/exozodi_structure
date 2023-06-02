@@ -109,6 +109,12 @@ def process(config):
     # get planet locations in sci and ref images
     sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, central_pixel, aperture, imsc, diam = ezf.get_planet_locations_and_info(roll_angle, planet_pos_mas, ap_sz, im_dir_path)    
     
+    # load matched filters according to aperture radius size
+    matched_filter_fl = matched_filter_dir + "matched_filter_datacube_{}_rang{}_aprad{}.npy".format(tele, round(roll_angle), ap_sz)
+    matched_filter_single_fl = matched_filter_dir + "matched_filter_single_datacube_{}_rang{}_aprad{}.npy".format(tele, round(roll_angle), ap_sz)
+    matched_filter_datacube = np.load(matched_filter_fl)
+    matched_filter_datacube_single = np.load(matched_filter_single_fl)
+    
     im_dir = im_dir_path + "scatteredlight-Mp_1.0-ap_1.0-incl_{}-longitude_{}-exozodis_{}-distance_10-rang_{}".format(incl, longitude, zodis, round(roll_angle))
     if planet_outside:
         im_dir+= "-planet_outside"
@@ -116,7 +122,6 @@ def process(config):
 
     
     SNR_after_hipass_arr = []
-    SNR_classic_after_hipass_arr = []
     
     
     measured_noise_after_hipass_arr = []
@@ -180,23 +185,22 @@ def process(config):
             
         
             
-        SNR_after_hipass, SNR_classic_after_hipass, signal_counts, measured_noise_after_hipass, noise_map_sci = ezf.calc_SNR_ttest_ADI(sub_im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                                                                                                aperture, ap_sz, width, height, roll_angle, corrections=False, verbose=False)
+                
+        SNR_HPMF, mf_sig, measured_noise = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
+                                                                 sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                                                                 aperture, ap_sz, width, height, roll_angle)
         
 
         
-
-            
-            
+        if mf_sig < 0:
+            mf_sig = 0
+            SNR_HPMF = 0
         
        
         
-        #SNR_before_hipass_arr.append(SNR_before_hipass)
-        SNR_after_hipass_arr.append(SNR_after_hipass)
-        SNR_classic_after_hipass_arr.append(SNR_classic_after_hipass)
-            
+        SNR_after_hipass_arr.append(SNR_HPMF)
         
-        measured_noise_after_hipass_arr.append(measured_noise_after_hipass)
+        measured_noise_after_hipass_arr.append(measured_noise)
 
             
             
@@ -207,7 +211,6 @@ def process(config):
     
         
     median_SNR_after_hipass = np.nanmedian(SNR_after_hipass_arr)
-    median_SNR_classic_after_hipass = np.nanmedian(SNR_classic_after_hipass_arr)
     median_measured_noise_after_hipass = np.nanmedian(measured_noise_after_hipass_arr)
     
     
@@ -227,15 +230,9 @@ def process(config):
         plt.title("Median: {}, Mean: {}".format(np.nanmedian(SNR_after_hipass_arr), np.nanmean(SNR_after_hipass_arr)))
         plt.show()
         
-        plt.figure()
-        plt.hist(SNR_classic_after_hipass_arr, bins=30)
-        plt.axvline(np.nanmedian(SNR_classic_after_hipass_arr), color="k")
-        plt.axvline(np.nanmean(SNR_classic_after_hipass_arr), color="k", linestyle=":")
-        plt.title("Median: {}, Mean: {}".format(np.nanmedian(SNR_classic_after_hipass_arr), np.nanmean(SNR_classic_after_hipass_arr)))
-        plt.show()
 
     return_arr = np.array([im_sz/filter_sz, int(incl), int(zodis), 
-                           median_SNR_after_hipass, median_SNR_classic_after_hipass,
+                           median_SNR_after_hipass,
                            median_measured_noise_after_hipass, expected_noise,
                            tot_tint])
     
@@ -250,8 +247,8 @@ if parallel == False:
     data = []
     
     #configs = [([1, 101/10., "00", "1", "uniform"])]
-    configs = [([1, 101/5., "60", "50", "model", 1000])]
-    for config in configs:
+    #configs = [([1, 101/5., "60", "50", "model", 1000])]
+    for config in configs[:1]:
         
         data_arr  = process(config)
         data.append(data_arr)
@@ -265,9 +262,9 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=160)(delayed(process)(config) for config in configs)
+    results = Parallel(n_jobs=4)(delayed(process)(config) for config in configs[:3])
     
-    header = "filter_sz_pix incl zodis median_SNR_after_hipass median_SNR_classic_after_hipass measured_noise_after_hipass expected_noise tot_tint"
+    header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
     if planet_outside:
         save_fl += "_planout"

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import zoom, shift, rotate
 from scipy.interpolate import NearestNDInterpolator
 
-def plot_im(im, signal_i, signal_j, log=False):
+def plot_im(im, signal_i, signal_j, log=False, mask_edges=False):
     """
     Plotting function. plots a basic coronagraph image with crosshairs 
     at the specified location
@@ -27,6 +27,19 @@ def plot_im(im, signal_i, signal_j, log=False):
 
     """
     plt.figure(figsize=(20,20))
+    
+    if mask_edges:
+        inner = 10 
+        outer = 30
+        imsz, imsz = im.shape
+        imctr = (imsz-1)/2
+        for i in range(imsz):
+            for j in range(imsz):
+                dist = np.sqrt((i-imctr)**2 + (j - imctr)**2)
+                if dist < inner or dist > outer:
+                    im[i, j] = np.nan
+                
+    
     if log:
         plt.imshow(np.log(im), origin='lower')
     else:
@@ -156,6 +169,48 @@ def calculate_cc_map(matched_filter_datacube, im, valid_mask, hipass=False, filt
             cc_map[i, j] = corr
     
     return cc_map
+
+def calculate_mf_map(matched_filter_datacube, im, valid_mask, hipass=False, filtersize=10):
+    """
+    
+
+    Parameters
+    ----------
+    matched_filter_datacube : 3D numpy array
+        datacube containing all combinations of matched filters
+    im : 2D numpy array
+        image you want to apply the matched filter to
+    valid_mask : 2D numpy array, boolean
+        Where the matched filter is valid. i.e. only valid inside the OWA and
+        outside the IWA
+    hipass : bool, optional
+        True if you want to apply a hipass filter first. The default is False.
+    filtersize : float
+        filter size for high pass filter. The default is 10.
+
+    Returns
+    -------
+    cc_map : 2D numpy array
+        map of matched filter (cross-correlation) values.
+
+    """
+    
+    # cross-correlate
+    Npix_i, Npix_j = im.shape
+    mf_map = np.empty_like(im)
+    if hipass:
+        im = high_pass_filter(im, filtersize=filtersize)
+    for i in range(Npix_i):
+        for j in range(Npix_j):      
+            if valid_mask[i, j]:
+                matched_filter = matched_filter_datacube[i,j]    
+                mf = 2 * np.nansum(matched_filter * im) / np.nansum(matched_filter**2)
+            else:
+                mf = np.nan
+
+            mf_map[i, j] = mf
+    
+    return mf_map
 
 def mas_to_lamD(sep_mas, lam, D):
     """
@@ -1020,7 +1075,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     
     
     total_signal_CR = signal_apertures  #- noise_ttest#np.mean(noise_apertures)
-    if incl == 0 and (zodis < 10):
+    if uniform_disk is False and incl == 0 and (zodis < 10):
         total_signal_CR  = total_signal_CR + np.sum(sub_disk_im*sci_aperture_mask) + -1*np.sum(sub_disk_im*ref_aperture_mask)
     total_noise_CR = noise_background + total_signal_CR
     total_bkgr_CR = noise_background
@@ -1743,29 +1798,43 @@ def downbin_psf(psf, imsc, imsz, wave, diam, tele):
     
     if tele == "LUVA":
         shift_order = 1
+        zoom_order = 5
     elif tele == "LUVB":
-        shift_order = 0
+        shift_order =1
+        zoom_order = 5
     
     rad2mas = 180./np.pi*3600.*1000.
 
-    imsc2 = 0.5*0.5e-6/(0.9*diam)*rad2mas # mas
+    imsc2 = 0.5*wave*1e-6/(0.9*diam)*rad2mas # mas
     
     # Compute wavelength-dependent zoom factor.
-    fact = 0.25*wave * 1e-6 /diam*rad2mas/imsc2
+    fact = 0.25*wave * 1e-6 /(0.9*diam)*rad2mas/imsc2
+
+
 
     norm = np.sum(psf)
 
     # Scale image to imsc.
-    temp = np.exp(zoom(np.log(psf), fact, mode='nearest', order=5)) # interpolate in log-space to avoid negative values
+    temp = np.exp(zoom(np.log(psf), fact, mode='nearest', order=zoom_order)) # interpolate in log-space to avoid negative values
+    
     
     temp *= norm/np.sum(temp) # ph/s
     
+    
+    
     # Center image so that (imsz-1)/2 is center.
     if (((temp.shape[0] % 2 == 0) and (imsz % 2 != 0)) or ((temp.shape[0] % 2 != 0) and (imsz % 2 == 0))):
+
         temp = np.pad(temp, ((0, 1), (0, 1)), mode='edge')
+
         temp = np.exp(shift(np.log(temp), (0.5, 0.5), order=shift_order)) # interpolate in log-space to avoid negative values
+
+
         temp = temp[1:-1, 1:-1]
-        
+
+
+
+    
     # Crop image to imsz.
     if (temp.shape[0] > imsz):
         nn = (temp.shape[0]-imsz)//2
@@ -2155,7 +2224,8 @@ def calc_SNR_ttest(signal_apertures, noise_apertures, DI):
     return signal_ttest, noise_ttest
     
     
-    
+
+
 
 
 def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
@@ -2222,7 +2292,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
     counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
     
-        
+    ap_coords = np.concatenate((ap_coords_nr_dynasquare_sci, ap_coords_nr_dynasquare_ref))
     tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci# - np.median(counts_per_ap_nr_dynasquare_sci)
     tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref# - np.median(counts_per_ap_nr_dynasquare_ref)
     
@@ -2249,7 +2319,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
     noise_apertures = np.concatenate((tot_sci_ap_counts_dynasquare, tot_ref_ap_counts_dynasquare))
 
     #print("Classic SNR:", np.abs((signal_apertures -np.mean(noise_apertures)))  / np.std(noise_apertures, ddof=1))
-    SNR_classic = np.abs((signal_apertures -np.mean(noise_apertures)))  / np.sqrt(np.std(noise_apertures, ddof=1)**2 + (signal_apertures -np.mean(noise_apertures)))
+    SNR_classic = signal_apertures  / np.sqrt(np.std(noise_apertures, ddof=1)**2 + (signal_apertures))
     #noise_apertures = np.concatenate((tot_sci_ap_counts_dynasquare, -1*tot_ref_ap_counts_dynasquare))
     std_correction_factor = np.sqrt(1 + (1/len(noise_apertures)))
     measured_noise = np.nanstd(noise_apertures, ddof=1) * std_correction_factor
@@ -2280,7 +2350,7 @@ def calc_SNR_ttest_ADI(im, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_
 
     noise_map_sci = ~np.isnan(nr_dynasquare_sci) 
     
-    return SNR_total, SNR_classic, signal_ttest, total_noise, noise_map_sci
+    return SNR_total, SNR_classic, signal_ttest, total_noise, noise_ttest, noise_map_sci, ap_coords
 
 def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_opp, sci_signal_j_opp, 
                        aperture, ap_sz, width, height, roll_angle, corrections=True, verbose=False):
@@ -2292,9 +2362,16 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     sci_signal_mask = np.zeros_like(im_hipass, dtype=bool)
     sci_signal_mask[sci_signal_i-ap_rad:sci_signal_i+ap_rad+1, sci_signal_j-ap_rad: sci_signal_j+ap_rad+1] = aperture
     
-    sci_sig = im_hipass[sci_signal_mask]
+    sci_signal_mask_opp = np.zeros_like(im_hipass, dtype=bool)
+    sci_signal_mask_opp[sci_signal_i_opp-ap_rad:sci_signal_i_opp+ap_rad+1, sci_signal_j_opp-ap_rad: sci_signal_j_opp+ap_rad+1] = aperture
+
+    
+    sci_sig = im[sci_signal_mask]
+    sci_sig_opp = im[sci_signal_mask_opp]
     
     signal_apertures = np.sum(sci_sig) 
+    signal_apertures_opp = np.sum(sci_sig_opp) 
+
     
 # =============================================================================
 #     print(signal_apertures)
@@ -2304,6 +2381,7 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     
     ## define noise region
     nr_dynasquare_sci = region_dynasquare(im_hipass, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
+    nr_dynasquare_sci_im = region_dynasquare(im, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
     
     if corrections:
         #### do an r^2 correction on the region
@@ -2311,7 +2389,7 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     
     ## measure noise
     counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
-    
+    counts_per_ap_nr_dynasquare_sci_im, ap_coords_nr_dynasquare_sci_im = sum_apertures_in_region(nr_dynasquare_sci_im, aperture, ap_sz)
         
     tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci
     
@@ -2328,6 +2406,9 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     
     total_noise = np.sqrt(noise_ttest**2 + signal_apertures)
 
+    print(signal_apertures, signal_apertures_opp, np.mean(counts_per_ap_nr_dynasquare_sci_im), noise_ttest**2)
+    print((signal_apertures - signal_apertures_opp) / np.sqrt(noise_ttest**2 + signal_apertures - signal_apertures_opp) )
+    signal_ttest = signal_apertures - np.mean(counts_per_ap_nr_dynasquare_sci_im)
     
     SNR_total = signal_ttest / total_noise
 
@@ -2337,3 +2418,88 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
     return SNR_total, SNR_classic, signal_ttest, total_noise, noise_map_sci
 
 
+def calc_SNR_HPMF_ADI(im_hipass, matched_filter_datacube, matched_filter_datacube_single,
+                      sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                      aperture, ap_sz, width, height, roll_angle):
+    
+
+    imsz, imsz = im_hipass.shape
+    apsz, apsz = aperture.shape
+    ap_rad = int((apsz - 1)/2)
+    
+    imctr = (imsz -1)/2
+    
+    
+    sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_signal_i, sci_signal_j, imctr)
+    ref_signal_i_opp, ref_signal_j_opp  = get_opp_coords(ref_signal_i, ref_signal_j, imctr)
+        
+    
+    
+    ## define noise region
+    nr_dynasquare_sci = region_dynasquare(im_hipass, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
+    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im_hipass, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, ap_sz, roll_angle, opposite=True)
+    
+
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    counts_per_ap_nr_dynasquare_ref_photometry, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, ap_sz)
+    
+    ap_coords = np.concatenate((ap_coords_nr_dynasquare_sci, ap_coords_nr_dynasquare_ref))
+
+    
+    # get matched filter signal
+    mf_signal = np.nansum(matched_filter_datacube[sci_signal_i, sci_signal_j] * im_hipass) / np.nansum(matched_filter_datacube[sci_signal_i, sci_signal_j]**2)
+    
+    # get matched filter noise
+    mf_noises = []
+    for ap_coord in ap_coords:
+        i, j = ap_coord
+        mf_single = np.nansum(matched_filter_datacube_single[i, j] * im_hipass) / np.nansum(matched_filter_datacube_single[i, j]**2)
+        mf_noises.append(mf_single)
+    mf_noise = np.sqrt((np.std(mf_noises, ddof=1) * np.sqrt(1 + 1/len(ap_coords)))**2 + mf_signal)
+
+    SNR_HPMF = mf_signal / mf_noise
+    
+    return SNR_HPMF, mf_signal, mf_noise
+
+def calc_SNR_HPMF_RDI(im_hipass, matched_filter_datacube_single,
+                      sci_signal_i, sci_signal_j, 
+                      aperture, ap_sz, width, height):
+    
+
+    imsz, imsz = im_hipass.shape
+    apsz, apsz = aperture.shape
+    ap_rad = int((apsz - 1)/2)
+    
+    imctr = (imsz -1)/2
+    
+    
+    sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_signal_i, sci_signal_j, imctr)
+        
+    
+    ## define noise region
+    nr_dynasquare_sci = region_dynasquare(im_hipass, sci_signal_i_opp, sci_signal_j_opp, aperture, ap_sz, width, height, opposite=True)
+    
+
+    ## measure noise
+    counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, ap_sz)
+    
+    ap_coords = ap_coords_nr_dynasquare_sci
+
+    
+    # get matched filter signal
+    mf_signal = np.nansum(matched_filter_datacube_single[sci_signal_i, sci_signal_j] * im_hipass) / np.nansum(matched_filter_datacube_single[sci_signal_i, sci_signal_j]**2)
+    
+    # get matched filter noise
+    mf_noises = []
+    for ap_coord in ap_coords:
+        i, j = ap_coord
+        mf_single = np.nansum(matched_filter_datacube_single[i, j] * im_hipass) / np.nansum(matched_filter_datacube_single[i, j]**2)
+        mf_noises.append(mf_single)
+    mf_noise = np.sqrt((np.std(mf_noises, ddof=1) * np.sqrt(1 + 1/len(ap_coords)))**2 + mf_signal)
+
+    SNR_HPMF = mf_signal / mf_noise
+    
+    return SNR_HPMF, mf_signal, mf_noise
+    
+    
