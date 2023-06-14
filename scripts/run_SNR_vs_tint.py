@@ -29,18 +29,13 @@ except IndexError:
 
 matched_filter_dir = "../matched_filter_library/"
 
-if planloc == "planin":
-    planet_outside = False
-elif planloc == "planout":
-    planet_outside = True
+
     
 
 if tele == "LUVA":
     planet_pos_lamD = 10.5
     planet_pos_mas = 100.26761414789404
-    if planet_outside:
-        planet_pos_lamD = 21.
-        planet_pos_mas = 200.53522829578813
+    
     im_dir_path = "../data/LUVOIR-A_outputs/"
     IWA = 7.5
     OWA = 40#22.
@@ -48,10 +43,9 @@ if tele == "LUVA":
 if tele == "LUVB":
     planet_pos_lamD = 7.0 # lam/D
     planet_pos_mas = 100.26761414789404
-    if planet_outside:
-        planet_pos_lamD = 14. # lam/D
-        planet_pos_mas = 200.53522829578813
+    
     im_dir_path = "../data/LUVOIR-B_outputs/"
+    im_dir_path_od = "../data/LUVOIR-B_outputs_opticaldepth/"
     IWA = 2.5
     OWA = 22 #13
 
@@ -65,10 +59,9 @@ zodi_arr = ["1", "5", "10", "20", "50", "100"]
 longitude = "00"
 
 
-tot_tint_arr = np.logspace(2, 8, 100)
+tot_tint_arr = np.logspace(2, 10, 100)
 
-tot_tint_arr = np.logspace(8, 10, 34)
-
+mode = "opticaldepth"
 
 
 configs = []
@@ -117,10 +110,12 @@ def process(config):
     matched_filter_datacube = np.load(matched_filter_fl)
     matched_filter_datacube_single = np.load(matched_filter_single_fl)
     
-    im_dir = im_dir_path + "scatteredlight-Mp_1.0-ap_1.0-incl_{}-longitude_{}-exozodis_{}-distance_10-rang_{}".format(incl, longitude, zodis, round(roll_angle))
-    if planet_outside:
-        im_dir+= "-planet_outside"
-    im_dir += "/"
+    if mode == "scatteredlight":
+        im_dir = im_dir_path + "scatteredlight-Mp_1.0-ap_1.0-incl_{}-longitude_{}-exozodis_{}-distance_10-rang_{}/".format(incl, longitude, zodis, round(roll_angle))
+        im_dir += "/"
+    elif mode == "opticaldepth":
+        im_dir = im_dir_path_od + "opticaldepth-Mp_1.0-ap_1.0-incl_{}-longitude_{}-exozodis_{}-distance_10-rang_{}/".format(incl, longitude, zodis, round(roll_angle))
+        im_dir += "/"
 
     
     SNR_after_hipass_arr = []
@@ -264,11 +259,11 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
+    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs[:1])
     
     header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
-    save_fl += "_extended"
+    save_fl += "_{}".format(mode)
     save_fl += ".dat"
     np.savetxt(save_fl, results, header=header, comments='')
  
