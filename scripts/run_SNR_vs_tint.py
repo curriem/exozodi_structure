@@ -67,6 +67,8 @@ longitude = "00"
 
 tot_tint_arr = np.logspace(2, 8, 100)
 
+tot_tint_arr = np.logspace(8, 10, 34)
+
 
 
 configs = []
@@ -266,8 +268,7 @@ elif parallel == True:
     
     header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
-    if planet_outside:
-        save_fl += "_planout"
+    save_fl += "_extended"
     save_fl += ".dat"
     np.savetxt(save_fl, results, header=header, comments='')
  
