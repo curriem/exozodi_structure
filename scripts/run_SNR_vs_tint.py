@@ -262,7 +262,7 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=4)(delayed(process)(config) for config in configs[:3])
+    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
     
     header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
