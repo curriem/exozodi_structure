@@ -315,7 +315,7 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=4)(delayed(process)(config) for config in configs[:3])
+    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
     
     header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_after_hipass iterations measured_noise_after_hipass expected_noise_bkgr std_SNR_after_hipass std_noise_after_hipass"
     save_fl = "data_{}_{}".format(tele, DI)
