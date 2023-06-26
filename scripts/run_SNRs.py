@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 
 # define some parameters
-roll_angle = 30.
+roll_angle = 90.
 add_noise = True
 add_star = True
 planet_noise = True
@@ -88,8 +88,18 @@ for ap_sz in ap_sz_arr:
 
 # define height and width of noise region:
 noise_region = "planet"
-inner_r = None
-outer_r = 3
+if tele == "LUVA" and DI == "ADI":
+    inner_r = 1
+    outer_r = 4
+elif tele == "LUVA" and DI == "RDI":
+    inner_r = 1
+    outer_r = 4
+elif tele == "LUVB" and DI == "ADI":
+    inner_r = 1
+    outer_r = 3
+elif tele == "LUVB" and DI == "RDI":
+    inner_r = None
+    outer_r = 3
 
 import time
 def process(config):
@@ -292,7 +302,7 @@ def process(config):
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:

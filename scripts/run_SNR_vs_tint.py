@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 
 # define some parameters
-roll_angle = 30.
+roll_angle = 90.
 add_noise = True
 add_star = True
 planet_noise = True
