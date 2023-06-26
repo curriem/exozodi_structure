@@ -17,14 +17,10 @@ planet_noise = True
 try:
     tele = str(sys.argv[1])
     DI = str(sys.argv[2])
-    noise_region = str(sys.argv[3])
-    planloc = str(sys.argv[4])
 except IndexError:
     
     tele = "LUVB"
     DI = "ADI"
-    noise_region = None
-    planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
 
 matched_filter_dir = "../matched_filter_library/"
@@ -59,9 +55,10 @@ zodi_arr = ["1", "5", "10", "20", "50", "100"]
 longitude = "00"
 
 
-tot_tint_arr = np.logspace(2, 10, 100)
+#tot_tint_arr = np.logspace(2, 10, 100)
+tot_tint_arr = np.logspace(2, 8, 25)
 
-mode = "opticaldepth"
+mode = "scatteredlight"
 
 
 configs = []
@@ -259,7 +256,7 @@ if parallel == False:
 elif parallel == True:
     from joblib import Parallel, delayed
     
-    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs[:1])
+    results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
     
     header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
