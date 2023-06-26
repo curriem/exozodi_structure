@@ -22,7 +22,7 @@ try:
 except IndexError:
     
     tele = "LUVB"
-    DI = "RDI"
+    DI = "ADI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -87,8 +87,9 @@ for ap_sz in ap_sz_arr:
 
 
 # define height and width of noise region:
-height = 3
-width = 3
+noise_region = "planet"
+inner_r = None
+outer_r = 3
 
 import time
 def process(config):
@@ -141,25 +142,27 @@ def process(config):
         # synthesize images
         if DI == "ADI":
             sci_im, ref_im,  \
-            expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
+            expected_noise_planet, expected_noise_bkgr, outside_loc, tot_tint, sub_disk_im_noiseless = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
                                                                                                    target_SNR=7, pix_radius=ap_sz,
                                                                                                    verbose=syn_verbose, 
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
-                                                                                                   uniform_disk=uniform_disk)
+                                                                                                   uniform_disk=uniform_disk,
+                                                                                                   background="planetloc")
             sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
         elif DI == "RDI":
             
             sci_im, ref_im, \
-                expected_noise_planet, expected_noise_outside, outside_loc = ezf.synthesize_images_RDI3(im_dir, sci_signal_i, sci_signal_j, float(zodis), aperture,
+                expected_noise_planet, expected_noise_bkgr, outside_loc, tot_tint, sub_disk_im_noiseless = ezf.synthesize_images_RDI3(im_dir, sci_signal_i, sci_signal_j, float(zodis), aperture,
                                                                                                    target_SNR=7, pix_radius=ap_sz, 
                                                                                                    verbose=syn_verbose,
                                                                                                    add_noise=add_noise, 
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
                                                                                                    uniform_disk=uniform_disk,
-                                                                                                   zerodisk=False)
+                                                                                                   zerodisk=False,
+                                                                                                   background="planetloc")
             sci_out_i, sci_out_j = outside_loc
             
             
@@ -199,22 +202,24 @@ def process(config):
 
         # get expected noise
         expected_noise = np.sqrt(expected_noise_planet)
+        expected_noise_bkgr = np.sqrt(expected_noise_bkgr)
+
         
     
             
         
         if DI == "ADI":
            
-            SNR_HPMF, mf_sig, measured_noise = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
+            SNR_HPMF, mf_sig, measured_noise, measured_noise_bkgr = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
                                                              sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                                                             aperture, ap_sz, width, height, roll_angle)
+                                                             aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region=noise_region)
             
         
         elif DI == "RDI":
          
-            SNR_HPMF, mf_sig, measured_noise = ezf.calc_SNR_HPMF_RDI(sub_im_hipass, matched_filter_datacube_single,
+            SNR_HPMF, mf_sig, measured_noise, measured_noise_bkgr = ezf.calc_SNR_HPMF_RDI(sub_im_hipass, matched_filter_datacube_single,
                                                                      sci_signal_i, sci_signal_j, 
-                                                                     aperture, ap_sz, width, height)
+                                                                     aperture, ap_sz, inner_r, outer_r, noise_region=noise_region)
         
         
 
@@ -226,8 +231,10 @@ def process(config):
             SNR_HPMF = 0
         
         SNR_HPMF_arr.append(SNR_HPMF)
-        measured_noise_after_hipass_arr.append(measured_noise)
         signal_arr.append(mf_sig)
+        
+        measured_noise_after_hipass_arr.append(measured_noise_bkgr)
+
         
 
         
@@ -278,14 +285,14 @@ def process(config):
     return_arr = np.array([uniform_disk, ap_sz, im_sz/filter_sz, int(incl), int(zodis), 
                            median_SNR_HPMF,
                            iterations,
-                           median_measured_noise_after_hipass, expected_noise,
+                           median_measured_noise_after_hipass, expected_noise_bkgr,
                            std_SNR_HPMF, std_noise_after_hipass])
     
     end_time = time.time()
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
@@ -310,7 +317,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=4)(delayed(process)(config) for config in configs[:3])
     
-    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_after_hipass iterations measured_noise_after_hipass expected_noise std_SNR_after_hipass std_noise_after_hipass"
+    header = "uniform_disk ap_sz filter_sz_pix incl zodis median_SNR_after_hipass iterations measured_noise_after_hipass expected_noise_bkgr std_SNR_after_hipass std_noise_after_hipass"
     save_fl = "data_{}_{}".format(tele, DI)
     if planloc == "planout":
         save_fl += "_planout"

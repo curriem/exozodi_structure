@@ -17,15 +17,13 @@ planet_noise = True
 try:
     tele = str(sys.argv[1])
     DI = str(sys.argv[2])
-    noise_region = str(sys.argv[3])
-    planloc = str(sys.argv[4])
+    planloc = str(sys.argv[3])
 except IndexError:
     
     tele = "LUVB"
     DI = "ADI"
-    noise_region = None
     planloc = "planin"
-    print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
+    print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}.".format(tele, DI))
 
 matched_filter_dir = "../matched_filter_library/"
 
@@ -80,8 +78,20 @@ for filter_sz in filter_sz_arr_pix:
 
 
 # define height and width of noise region:
-height = 3
-width = 3
+noise_region = "planet"
+if tele == "LUVA" and DI == "ADI":
+    inner_r = 1
+    outer_r = 4
+elif tele == "LUVA" and DI == "RDI":
+    inner_r = 1
+    outer_r = 4
+elif tele == "LUVB" and DI == "ADI":
+    inner_r = 1
+    outer_r = 3
+elif tele == "LUVB" and DI == "RDI":
+    inner_r = None
+    outer_r = 3
+
 
 import time
 def process(config):
@@ -139,15 +149,14 @@ def process(config):
     
         # synthesize images
         sci_im, ref_im,  \
-        expected_noise_planet, expected_noise_outside, outside_loc, tot_tint = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
-                                                                                               target_SNR=None, tot_tint=tot_tint, pix_radius=ap_sz,
+        expected_noise_planet, expected_noise_bkgr, outside_loc, tot_tint, sub_disk_im_noiseless = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
+                                                                                               target_SNR=7, pix_radius=ap_sz,
                                                                                                verbose=syn_verbose, 
                                                                                                add_noise=add_noise, 
                                                                                                add_star=add_star, 
                                                                                                planet_noise=planet_noise, 
-                                                                                               uniform_disk=uniform_disk)        
-        
-        
+                                                                                               uniform_disk=uniform_disk,
+                                                                                               background="planetloc")
 
 
         # get opposite coords
@@ -175,7 +184,7 @@ def process(config):
         
         # get expected noise
         expected_noise = np.sqrt(expected_noise_planet)
-        expected_noise_out = np.sqrt(expected_noise_outside)
+        expected_noise_bkgr = np.sqrt(expected_noise_bkgr)
         
         
 
@@ -183,9 +192,9 @@ def process(config):
         
             
                 
-        SNR_HPMF, mf_sig, measured_noise = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
-                                                                 sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                                                                 aperture, ap_sz, width, height, roll_angle)
+        SNR_HPMF, mf_sig, measured_noise, measured_noise_bkgr = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
+                                                         sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                                                         aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region=noise_region)
         
 
         
@@ -197,7 +206,7 @@ def process(config):
         
         SNR_after_hipass_arr.append(SNR_HPMF)
         
-        measured_noise_after_hipass_arr.append(measured_noise)
+        measured_noise_after_hipass_arr.append(measured_noise_bkgr)
 
             
             
@@ -216,7 +225,7 @@ def process(config):
     if verbose:
         print("Median SNR after hipass:", median_SNR_after_hipass)
         print("Expected noise:", expected_noise)
-        print("Expected noise out:", expected_noise_out)
+        print("Expected noise out:", expected_noise_bkgr)
         print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise)
 
         
