@@ -17,7 +17,7 @@ planet_noise = True
 try:
     tele = str(sys.argv[1])
     DI = str(sys.argv[2])
-    planloc = str(sys.argv[3])
+    mode = str(sys.argv[3])
 except IndexError:
     
     tele = "LUVB"
@@ -60,8 +60,6 @@ longitude = "00"
 
 #tot_tint_arr = np.logspace(2, 10, 100)
 tot_tint_arr = np.logspace(2, 8, 25)
-
-mode = "scatteredlight"
 
 
 configs = []
