@@ -22,7 +22,7 @@ try:
 except IndexError:
     
     tele = "LUVB"
-    DI = "ADI"
+    DI = "RDI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -88,18 +88,23 @@ for ap_sz in ap_sz_arr:
 
 # define height and width of noise region:
 noise_region = "planet"
-if tele == "LUVA" and DI == "ADI":
-    inner_r = 1
-    outer_r = 4
-elif tele == "LUVA" and DI == "RDI":
-    inner_r = 1
-    outer_r = 4
-elif tele == "LUVB" and DI == "ADI":
-    inner_r = 1
-    outer_r = 3
-elif tele == "LUVB" and DI == "RDI":
-    inner_r = None
-    outer_r = 3
+# =============================================================================
+# if tele == "LUVA" and DI == "ADI":
+#     inner_r = 1
+#     outer_r = 4
+# elif tele == "LUVA" and DI == "RDI":
+#     inner_r = 1
+#     outer_r = 4
+# elif tele == "LUVB" and DI == "ADI":
+#     inner_r = 1
+#     outer_r = 3
+# elif tele == "LUVB" and DI == "RDI":
+#     inner_r = 2
+#     outer_r = 6
+# =============================================================================
+    
+inner_r = 2
+outer_r = 6
 
 import time
 def process(config):
@@ -159,7 +164,9 @@ def process(config):
                                                                                                    add_star=add_star, 
                                                                                                    planet_noise=planet_noise, 
                                                                                                    uniform_disk=uniform_disk,
-                                                                                                   background="planetloc")
+                                                                                                   background="region",
+                                                                                                   simple_planet=False,
+                                                                                                   matched_filter_datacube_single=matched_filter_datacube_single)
             sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
         elif DI == "RDI":
             
@@ -172,7 +179,8 @@ def process(config):
                                                                                                    planet_noise=planet_noise, 
                                                                                                    uniform_disk=uniform_disk,
                                                                                                    zerodisk=False,
-                                                                                                   background="planetloc")
+                                                                                                   background="region",
+                                                                                                   matched_filter_datacube_single=matched_filter_datacube_single)
             sci_out_i, sci_out_j = outside_loc
             
             
@@ -271,7 +279,7 @@ def process(config):
         print("Median SNR:", median_SNR_HPMF)
         print("Median SNR after hipass:", median_SNR_HPMF)
         print("Expected noise:", expected_noise)
-        print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise)
+        print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise_bkgr)
         print("Median signal:", median_signal)
         
         
@@ -280,14 +288,23 @@ def process(config):
         plt.hist(SNR_HPMF_arr, bins=30)
         plt.axvline(np.nanmedian(SNR_HPMF_arr), color="k")
         plt.axvline(np.nanmean(SNR_HPMF_arr), color="k", linestyle=":")
-        plt.title("SNR HPMF, Median: {}, Mean: {}".format(np.nanmedian(SNR_HPMF_arr), np.nanmean(SNR_HPMF_arr)))
+        plt.title("SNR HPMF, Median: {}, Mean: {}".format(round(np.nanmedian(SNR_HPMF_arr), 3), round(np.nanmean(SNR_HPMF_arr), 3)))
         plt.show()
         
         plt.figure()
         plt.hist(signal_arr, bins=30)
         plt.axvline(np.nanmedian(signal_arr), color="k")
         plt.axvline(np.nanmean(signal_arr), color="k", linestyle=":")
-        plt.title("signal, Median: {}, Mean: {}".format(np.nanmedian(signal_arr), np.nanmean(signal_arr)))
+        plt.title("signal, Median: {}, Mean: {}".format(round(np.nanmedian(signal_arr), 3), round(np.nanmean(signal_arr), 3)))
+        plt.show()
+        
+        plt.figure()
+        plt.hist(measured_noise_after_hipass_arr, bins=30)
+        plt.axvline(np.nanmedian(measured_noise_after_hipass_arr), color="k")
+        plt.axvline(np.nanmean(measured_noise_after_hipass_arr), color="k", linestyle=":")
+        plt.axvline(expected_noise_bkgr, color="red", linestyle="-", linewidth=3, alpha=0.5)
+
+        plt.title("noise, True: {}, Median: {}, Mean: {}".format(round(expected_noise_bkgr, 3), round(np.nanmedian(measured_noise_after_hipass_arr), 3), round(np.nanmean(measured_noise_after_hipass_arr), 3)))
         plt.show()
         
         
@@ -308,7 +325,7 @@ parallel = True
 if parallel == False:
     data = []
     
-    configs = [([1, 101/50, "60", "20", "model"])]
+    configs = [([1, 101/101, "00", "1", "uniform"])]
     #configs = [([1, 101/4., "60", "50", "model"])]
     for config in configs:
         

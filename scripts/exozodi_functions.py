@@ -869,7 +869,7 @@ def synthesize_images_ADI2(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
 
 def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, incl, zodis, aperture, roll_angle,
                           target_SNR=7, tot_tint=None, pix_radius=1, verbose=False, planet_noise=True, 
-                          add_noise=True, add_star=True, uniform_disk=False, simple_planet=False, background=None):
+                          add_noise=True, add_star=True, uniform_disk=False, simple_planet=False, background=None, matched_filter_datacube_single=None):
     """
     function to synthesize images for ADI
 
@@ -1044,34 +1044,54 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     ref_signal_i_opp, ref_signal_j_opp  = get_opp_coords(ref_plan_i, ref_plan_j, (101-1)/2)
     
     if background == "region":
-        height=3
-        width=3
+        inner_r = 2
+        outer_r = 6
         
         ## define noise region
-        nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_signal_i_opp, sci_signal_j_opp, aperture, pix_radius, width, height, opposite=True)
-        nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, pix_radius, roll_angle, opposite=True)
+
+        nr_dynasquare_sci = region(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+        #nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, inner_r, aperture, pix_radius, roll_angle, opposite=False)
+        nr_dynasquare_ref = region(ref_im_total, ref_plan_i, ref_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+
         
-    # =============================================================================
-    #     ## define noise region
-    #     nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, width, height, opposite=False)
-    #     nr_dynasquare_ref = rotate_fregion(nr_dynasquare_sci, ref_im_total, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, aperture, pix_radius, roll_angle)
-    # =============================================================================
-    
-    
         ## measure noise
-        counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
-        counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
+        counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
+        counts_per_ap_nr_dynasquare_ref_photometry, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
         
-            
-        tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci# - np.median(counts_per_ap_nr_dynasquare_sci)
-        tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref# - np.median(counts_per_ap_nr_dynasquare_ref)    
-    
         
-    
-    
-        #signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
-    
-        noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
+        # old way to measure noise with just photometric aperture
+        #tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci_photometry# - np.median(counts_per_ap_nr_dynasquare_sci)
+        #tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref_photometry# - np.median(counts_per_ap_nr_dynasquare_ref)    
+        
+        #noise_background = np.median(tot_sci_ap_counts_dynasquare) + np.median(tot_ref_ap_counts_dynasquare)
+
+
+
+        # get matched filter noise
+        mf_noises_sci = []
+        mf_noises_ref = []
+
+        for ap_coord in ap_coords_nr_dynasquare_sci:
+            i, j = ap_coord
+            mf_single_sci = np.nansum(matched_filter_datacube_single[i, j] * nr_dynasquare_sci) / np.nansum(matched_filter_datacube_single[i, j]**2)
+            mf_noises_sci.append(mf_single_sci)
+        for ap_coord in ap_coords_nr_dynasquare_ref:
+            i, j = ap_coord
+            mf_single_ref = np.nansum(matched_filter_datacube_single[i, j] * nr_dynasquare_ref) / np.nansum(matched_filter_datacube_single[i, j]**2)
+            mf_noises_ref.append(mf_single_ref)
+        mf_noises_sci = np.array(mf_noises_sci)
+        mf_noises_ref = np.array(mf_noises_ref)
+        #noise_background = np.median(mf_noises_sci) + np.median(mf_noises_ref)
+        noise_background = np.mean(mf_noises_sci) + np.mean(mf_noises_ref)
+
+        #print("HERE", mf_noises_sci)
+        #print(mf_noises_ref)
+        #print(noise_background)
+        #print(np.median(mf_noises_sci+mf_noises_ref))
+        
+       # assert False
+        
+        
     
     
     elif background == "planetloc":
@@ -1377,7 +1397,7 @@ def get_CR(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, incl, zodis, 
     #signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
 
     noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
-    
+    assert False, "Fis this to reflect region changes in ADI3"
     
     total_signal_CR = signal_apertures  #- noise_ttest#np.mean(noise_apertures)
     if uniform_disk is False and incl == 0 and (zodis < 10):
@@ -1748,7 +1768,7 @@ def synthesize_images_RDI2(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
 
 def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
                           target_SNR=7, pix_radius=1, verbose=False, planet_noise=True, 
-                          add_noise=True, add_star=True, uniform_disk=False, r2_disk=False, simple_planet=False, zerodisk=False, background=None):
+                          add_noise=True, add_star=True, uniform_disk=False, r2_disk=False, simple_planet=False, zerodisk=False, background=None, matched_filter_datacube_single=None):
     """
     function to synthesize images for RDI
 
@@ -1874,31 +1894,42 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
     sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_plan_i, sci_plan_j, (101-1)/2)
     
     if background == "region":
-        height=3
-        width=3
+        inner_r = 2
+        outer_r = 6
         
-        ## define noise region
-        nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_signal_i_opp, sci_signal_j_opp, aperture, pix_radius, width, height, opposite=True)
-        nr_dynasquare_ref = region_dynasquare(ref_im_total, sci_signal_i_opp, sci_signal_j_opp, aperture, pix_radius, width, height, opposite=True)
-    
-        
-    # =============================================================================
-    #     ## define noise region
-    #     nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, width, height, opposite=False)
-    #     nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, aperture, pix_radius, roll_angle)
-    # =============================================================================
-    
-    
-        ## measure noise
-        counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
-        counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
-        
-            
-        tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci# - np.median(counts_per_ap_nr_dynasquare_sci)
-        tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref# - np.median(counts_per_ap_nr_dynasquare_ref)    
-    
-        noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
 
+    
+        nr_dynasquare_sci = region(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+        nr_dynasquare_ref = region(ref_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+
+        ## measure noise
+        counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
+        counts_per_ap_nr_dynasquare_ref_photometry, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
+        
+# =============================================================================
+#         tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci_photometry# - np.median(counts_per_ap_nr_dynasquare_sci)
+#         tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref_photometry# - np.median(counts_per_ap_nr_dynasquare_ref)    
+# 
+#         noise_background = np.median(tot_sci_ap_counts_dynasquare) + np.median(tot_ref_ap_counts_dynasquare)
+# 
+# =============================================================================
+
+        # get matched filter noise
+        mf_noises_sci = []
+        mf_noises_ref = []
+
+        for ap_coord in ap_coords_nr_dynasquare_sci:
+            i, j = ap_coord
+            mf_single_sci = np.nansum(matched_filter_datacube_single[i, j] * nr_dynasquare_sci) / np.nansum(matched_filter_datacube_single[i, j]**2)
+            mf_noises_sci.append(mf_single_sci)
+        for ap_coord in ap_coords_nr_dynasquare_ref:
+            i, j = ap_coord
+            mf_single_ref = np.nansum(matched_filter_datacube_single[i, j] * nr_dynasquare_ref) / np.nansum(matched_filter_datacube_single[i, j]**2)
+            mf_noises_ref.append(mf_single_ref)
+        mf_noises_sci = np.array(mf_noises_sci)
+        mf_noises_ref = np.array(mf_noises_ref)
+        
+        noise_background = np.mean(mf_noises_sci) + np.mean(mf_noises_ref)
     
     elif background == "planetloc":
 
@@ -2166,19 +2197,13 @@ def region(sub_im, signal_i, signal_j, aperture, ap_sz, inner_r, outer_r, opposi
 
     noise_mask = np.zeros_like(sub_im)
     
-    noise_mask[signal_i-outer_r:signal_i+outer_r+1, signal_j-outer_r:signal_j+outer_r+1] = 1
-    
-    
-    
-    if opposite:
-        pass
-    else:
-        # masks the planet psf
-        noise_mask[signal_i-ap_sz:signal_i+ap_sz+1, signal_j-ap_sz:signal_j+ap_sz+1] = ~aperture
-
-    if inner_r is not None:
-        noise_mask[signal_i-inner_r:signal_i+inner_r+1, signal_j-inner_r:signal_j+inner_r+1] = 0
-        
+    for i in range(imsz):
+        for j in range(imsz):
+            dist = np.sqrt((signal_i-i)**2 + (signal_j-j)**2)
+            if dist > inner_r and dist <= outer_r:
+                noise_mask[i, j] = 1
+                
+      
     zero_inds = np.where(noise_mask == 0.)
     noise_mask[zero_inds] = np.nan
     
@@ -2716,7 +2741,7 @@ def calc_SNR_ttest_RDI(im, im_hipass, sci_signal_i, sci_signal_j, sci_signal_i_o
 
 def calc_SNR_HPMF_ADI(im_hipass, matched_filter_datacube, matched_filter_datacube_single,
                       sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
-                      aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region=None):
+                      aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region="planet"):
     
 
     imsz, imsz = im_hipass.shape
@@ -2737,7 +2762,7 @@ def calc_SNR_HPMF_ADI(im_hipass, matched_filter_datacube, matched_filter_datacub
         nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im_hipass, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, inner_r, aperture, ap_sz, roll_angle, opposite=True)
     elif noise_region == "planet":
         nr_dynasquare_sci = region(im_hipass, sci_signal_i, sci_signal_j, aperture, ap_sz, inner_r, outer_r, opposite=False)
-        nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, im_hipass, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, inner_r, aperture, ap_sz, roll_angle, opposite=False)
+        nr_dynasquare_ref = region(im_hipass, ref_signal_i, ref_signal_j, aperture, ap_sz, inner_r, outer_r, opposite=False)
     else:
         assert False, "Please specify noise region to use"
 # =============================================================================
@@ -2764,11 +2789,32 @@ def calc_SNR_HPMF_ADI(im_hipass, matched_filter_datacube, matched_filter_datacub
         i, j = ap_coord
         mf_single = np.nansum(matched_filter_datacube_single[i, j] * im_hipass) / np.nansum(matched_filter_datacube_single[i, j]**2)
         mf_noises.append(mf_single)
+    
 
+  
     mf_background = (np.nanstd(mf_noises, ddof=1) * np.sqrt(1 + 1/len(ap_coords)))
+    
+# =============================================================================
+#     mf_noises_sci = []
+#     for ap_coord in ap_coords_nr_dynasquare_sci:
+#         i, j = ap_coord
+#         mf_single = np.nansum(matched_filter_datacube_single[i, j] * im_hipass) / np.nansum(matched_filter_datacube_single[i, j]**2)
+#         mf_noises_sci.append(mf_single)
+#         
+#     mf_noises_ref = []
+#     for ap_coord in ap_coords_nr_dynasquare_ref:
+#         i, j = ap_coord
+#         mf_single = np.nansum(matched_filter_datacube_single[i, j] * im_hipass) / np.nansum(matched_filter_datacube_single[i, j]**2)
+#         mf_noises_ref.append(mf_single)
+#         
+# 
+#     mf_background = np.sqrt((np.nanstd(mf_noises_ref, ddof=1) * np.sqrt(1 + 1/len(ap_coords_nr_dynasquare_sci)))**2 + (np.nanstd(mf_noises_ref, ddof=1) * np.sqrt(1 + 1/len(ap_coords_nr_dynasquare_ref)))**2)
+# =============================================================================
+    
     mf_noise = np.sqrt(mf_background**2 + mf_signal)
-
     SNR_HPMF = mf_signal / mf_noise
+    #print(mf_signal, mf_noise, mf_background, SNR_HPMF)
+
     
     return SNR_HPMF, mf_signal, mf_noise, mf_background
 
@@ -2827,7 +2873,7 @@ def calc_SNR_HPMF_RDI(im_hipass, matched_filter_datacube_single,
 
 def get_optimal_filtersize(temp_bool, df):
     
-    noise_meas_expt_arr = df[temp_bool]["measured_noise_after_hipass"].values / df[temp_bool]["expected_noise"].values
+    noise_meas_expt_arr = df[temp_bool]["measured_noise_after_hipass"].values / df[temp_bool]["expected_noise_bkgr"].values
     
     # limit to filter size less than 20 pixels
     filter_size_arr_temp = np.copy(df[temp_bool]["filter_sz_pix"].values)

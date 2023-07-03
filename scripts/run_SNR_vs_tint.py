@@ -81,18 +81,8 @@ for filter_sz in filter_sz_arr_pix:
 
 # define height and width of noise region:
 noise_region = "planet"
-if tele == "LUVA" and DI == "ADI":
-    inner_r = 1
-    outer_r = 4
-elif tele == "LUVA" and DI == "RDI":
-    inner_r = 1
-    outer_r = 4
-elif tele == "LUVB" and DI == "ADI":
-    inner_r = 1
-    outer_r = 3
-elif tele == "LUVB" and DI == "RDI":
-    inner_r = None
-    outer_r = 3
+inner_r = 2
+outer_r = 6
 
 
 import time
@@ -158,7 +148,8 @@ def process(config):
                                                                                                add_star=add_star, 
                                                                                                planet_noise=planet_noise, 
                                                                                                uniform_disk=uniform_disk,
-                                                                                               background="planetloc")
+                                                                                               background="region", 
+                                                                                               matched_filter_datacube_single=matched_filter_datacube_single)
 
 
         # get opposite coords
@@ -248,7 +239,7 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:
