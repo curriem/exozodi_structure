@@ -1082,14 +1082,10 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         mf_noises_sci = np.array(mf_noises_sci)
         mf_noises_ref = np.array(mf_noises_ref)
         #noise_background = np.median(mf_noises_sci) + np.median(mf_noises_ref)
-        noise_background = np.mean(mf_noises_sci) + np.mean(mf_noises_ref)
-
-        #print("HERE", mf_noises_sci)
-        #print(mf_noises_ref)
-        #print(noise_background)
-        #print(np.median(mf_noises_sci+mf_noises_ref))
+        noise_background = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
         
-       # assert False
+ 
+
         
         
     
