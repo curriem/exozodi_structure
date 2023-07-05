@@ -1925,7 +1925,7 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         mf_noises_sci = np.array(mf_noises_sci)
         mf_noises_ref = np.array(mf_noises_ref)
         
-        noise_background = np.mean(mf_noises_sci) + np.mean(mf_noises_ref)
+        noise_background = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
     
     elif background == "planetloc":
 
