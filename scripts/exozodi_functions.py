@@ -618,6 +618,9 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         tot_tint_ap = target_SNR**2 * total_noise_ap_CR / total_signal_CR**2
 
     elif target_SNR is None and tot_tint is not None:
+        tot_tint_mf = tot_tint
+        tot_tint_ap = tot_tint
+        # ap and mf images will end up being the same
         pass
     else:
         assert False, "Something is wrong... check target_SNR and tot_tint"

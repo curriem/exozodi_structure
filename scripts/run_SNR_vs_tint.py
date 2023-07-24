@@ -22,7 +22,7 @@ except IndexError:
     
     tele = "LUVB"
     DI = "ADI"
-    planloc = "planin"
+    mode = "scatteredlight"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}.".format(tele, DI))
 
 
@@ -118,10 +118,10 @@ def process(config):
         im_dir += "/"
 
     
-    SNR_after_hipass_arr = []
-    
-    
-    measured_noise_after_hipass_arr = []
+    SNR_HPMF_arr = []
+    SNR_HPAP_arr = []
+    measured_noise_HPMF_arr = []
+    measured_noise_HPAP_arr = []
     
     
 
@@ -138,44 +138,55 @@ def process(config):
             syn_verbose = False
     
         # synthesize images
-        sci_im, ref_im,  \
-        expected_noise_planet, expected_noise_bkgr, outside_loc, tot_tint, sub_disk_im_noiseless = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
-                                                                                               target_SNR=7, pix_radius=ap_sz,
+        sci_im_ap, ref_im_ap, sci_im_mf, ref_im_mf,  \
+            expected_noise_planet_ap, expected_noise_planet_mf, \
+            expected_noise_bkgr_ap, expected_noise_bkgr_mf, \
+            outside_loc, \
+            tot_tint_ap, tot_tint_mf, \
+            sub_disk_im_noiseless = ezf.synthesize_images_ADI3(im_dir, sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, float(incl), float(zodis), aperture, roll_angle,
+                                                                                               target_SNR=None, tot_tint=tot_tint, pix_radius=ap_sz,
                                                                                                verbose=syn_verbose, 
                                                                                                add_noise=add_noise, 
                                                                                                add_star=add_star, 
                                                                                                planet_noise=planet_noise, 
                                                                                                uniform_disk=uniform_disk,
-                                                                                               background="region", 
+                                                                                               background="region",
+                                                                                               simple_planet=False,
                                                                                                matched_filter_datacube_single=matched_filter_datacube_single)
 
-
         # get opposite coords
-        imsz, imsz = sci_im.shape
+        imsz, imsz = sci_im_mf.shape
         imctr = (imsz-1)/2
-        sci_signal_i_opp, sci_signal_j_opp  = ezf.get_opp_coords(sci_signal_i, sci_signal_j, imctr)
         
         
         # calculate maps
-        rotation_map, valid_mask, radius_map = ezf.construct_maps(sci_im, imsc, diam, IWA_lamD=IWA, OWA_lamD=OWA, plotting=False)
+        rotation_map, valid_mask, radius_map = ezf.construct_maps(sci_im_mf, imsc, diam, IWA_lamD=IWA, OWA_lamD=OWA, plotting=False)
         
         # set non-valid inds to nan
-        sci_im[~valid_mask] = np.nan
-        ref_im[~valid_mask] = np.nan
+        sci_im_ap[~valid_mask] = np.nan
+        ref_im_ap[~valid_mask] = np.nan
+        sci_im_mf[~valid_mask] = np.nan
+        ref_im_mf[~valid_mask] = np.nan
         
         
         
         # perform subtraction 
-        sub_im = sci_im - ref_im
+        sub_im_ap = sci_im_ap - ref_im_ap
+        sub_im_mf = sci_im_mf - ref_im_mf
 
         
         # perform high pass filter on the sub im
-        sub_im_hipass = ezf.high_pass_filter(sub_im, filtersize=filter_sz)
+        sub_im_hipass_ap = ezf.high_pass_filter(sub_im_ap, filtersize=filter_sz)
+        sub_im_hipass_mf = ezf.high_pass_filter(sub_im_mf, filtersize=filter_sz)
+
 
         
         # get expected noise
-        expected_noise = np.sqrt(expected_noise_planet)
-        expected_noise_bkgr = np.sqrt(expected_noise_bkgr)
+        expected_noise_ap = np.sqrt(expected_noise_planet_ap)
+        expected_noise_bkgr_ap = np.sqrt(expected_noise_bkgr_ap)
+        
+        expected_noise_mf = np.sqrt(expected_noise_planet_mf)
+        expected_noise_bkgr_mf = np.sqrt(expected_noise_bkgr_mf)
         
         
 
@@ -183,22 +194,30 @@ def process(config):
         
             
                 
-        SNR_HPMF, mf_sig, measured_noise, measured_noise_bkgr = ezf.calc_SNR_HPMF_ADI(sub_im_hipass, matched_filter_datacube, matched_filter_datacube_single,
+        SNR_HPMF, sig_HPMF, measured_noise_HPMF, measured_noise_HPMF_bkgr = ezf.calc_SNR_HPMF_ADI(sub_im_hipass_mf, matched_filter_datacube, matched_filter_datacube_single,
                                                          sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
                                                          aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region=noise_region)
         
-
+        SNR_HPAP, sig_HPAP, measured_noise_HPAP, measured_noise_HPAP_bkgr = ezf.calc_SNR_HPAP_ADI(sub_im_hipass_ap,
+                                                         sci_signal_i, sci_signal_j, ref_signal_i, ref_signal_j, 
+                                                         aperture, ap_sz, inner_r, outer_r, roll_angle, noise_region=noise_region)
         
-        if mf_sig < 0:
-            mf_sig = 0
+        if sig_HPMF < 0:
+            sig_HPMF = 0
             SNR_HPMF = 0
-        
+            
+        if sig_HPAP < 0:
+            sig_HPAP = 0
+            SNR_HPAP = 0
        
         
-        SNR_after_hipass_arr.append(SNR_HPMF)
+       
+        SNR_HPMF_arr.append(SNR_HPMF)
+        measured_noise_HPMF_arr.append(measured_noise_HPMF_bkgr)
         
-        measured_noise_after_hipass_arr.append(measured_noise_bkgr)
-
+        SNR_HPAP_arr.append(SNR_HPAP)
+        measured_noise_HPAP_arr.append(measured_noise_HPAP_bkgr)
+       
             
             
         
@@ -207,37 +226,72 @@ def process(config):
 
     
         
-    median_SNR_after_hipass = np.nanmedian(SNR_after_hipass_arr)
-    median_measured_noise_after_hipass = np.nanmedian(measured_noise_after_hipass_arr)
+    med_meas_noise_HPMF = np.nanmedian(measured_noise_HPMF_arr)
+    med_meas_noise_HPAP = np.nanmedian(measured_noise_HPAP_arr)
+    
+    med_SNR_HPMF = np.nanmedian(SNR_HPMF_arr)
+    med_SNR_HPAP = np.nanmedian(SNR_HPAP_arr)
+    
     
     
     
     verbose = False
     if verbose:
-        print("Median SNR after hipass:", median_SNR_after_hipass)
-        print("Expected noise:", expected_noise)
-        print("Expected noise out:", expected_noise_bkgr)
-        print("Median measured/expected noise after hipass:", median_measured_noise_after_hipass/expected_noise)
+        print("Median SNR HPMF:", med_SNR_HPMF)
+        print("Median SNR HPAP:", med_SNR_HPAP)
 
+        print("Expected noise MF:", expected_noise_mf)
+        print("Expected noise AP:", expected_noise_ap)
+
+        print("Median measured/expected noise MF:", med_meas_noise_HPMF/expected_noise_bkgr_mf)
+        print("Median measured/expected noise AP:", med_meas_noise_HPAP/expected_noise_bkgr_ap)
         
-        plt.figure()
-        plt.hist(SNR_after_hipass_arr, bins=30)
-        plt.axvline(np.nanmedian(SNR_after_hipass_arr), color="k")
-        plt.axvline(np.nanmean(SNR_after_hipass_arr), color="k", linestyle=":")
-        plt.title("Median: {}, Mean: {}".format(np.nanmedian(SNR_after_hipass_arr), np.nanmean(SNR_after_hipass_arr)))
-        plt.show()
+        
+        fig, axes = plt.subplots(2,2)
+        
+        # SNR HPAP
+        axes[0,0].hist(SNR_HPAP_arr, bins=30)
+        axes[0,0].axvline(np.nanmedian(SNR_HPAP_arr), color="k")
+        axes[0,0].axvline(np.nanmean(SNR_HPAP_arr), color="k", linestyle=":")
+        axes[0,0].set_title("SNR HPAP, Median: {}, Mean: {}".format(round(np.nanmedian(SNR_HPAP_arr), 3), round(np.nanmean(SNR_HPAP_arr), 3)))
+
+        # SNR HPMF
+        axes[0,1].hist(SNR_HPMF_arr, bins=30)
+        axes[0,1].axvline(np.nanmedian(SNR_HPMF_arr), color="k")
+        axes[0,1].axvline(np.nanmean(SNR_HPMF_arr), color="k", linestyle=":")
+        axes[0,1].set_title("SNR HPMF, Median: {}, Mean: {}".format(round(np.nanmedian(SNR_HPMF_arr), 3), round(np.nanmean(SNR_HPMF_arr), 3)))
+        
+        
+        # noise HPAP
+        axes[1,0].hist(measured_noise_HPAP_arr, bins=30)
+        axes[1,0].axvline(np.nanmedian(measured_noise_HPAP_arr), color="k")
+        axes[1,0].axvline(np.nanmean(measured_noise_HPAP_arr), color="k", linestyle=":")
+        axes[1,0].axvline(expected_noise_bkgr_ap, color="red", linestyle="-", linewidth=3, alpha=0.5)
+        axes[1,0].set_title("noise, True: {}, Median: {}, Mean: {}".format(round(expected_noise_bkgr_ap, 3), round(np.nanmedian(measured_noise_HPAP_arr), 3), round(np.nanmean(measured_noise_HPAP_arr), 3)))
+        
+        
+        # noise HPMF
+        axes[1,1].hist(measured_noise_HPMF_arr, bins=30)
+        axes[1,1].axvline(np.nanmedian(measured_noise_HPMF_arr), color="k")
+        axes[1,1].axvline(np.nanmean(measured_noise_HPMF_arr), color="k", linestyle=":")
+        axes[1,1].axvline(expected_noise_bkgr_mf, color="red", linestyle="-", linewidth=3, alpha=0.5)
+        axes[1,1].set_title("noise, True: {}, Median: {}, Mean: {}".format(round(expected_noise_bkgr_mf, 3), round(np.nanmedian(measured_noise_HPMF_arr), 3), round(np.nanmean(measured_noise_HPMF_arr), 3)))
+        
+        fig.tight_layout()
         
 
     return_arr = np.array([im_sz/filter_sz, int(incl), int(zodis), 
-                           median_SNR_after_hipass,
-                           median_measured_noise_after_hipass, expected_noise,
+                           med_SNR_HPAP, med_SNR_HPMF, 
+                           med_meas_noise_HPAP, med_meas_noise_HPMF,
+                           expected_noise_ap, expected_noise_mf,
+                           expected_noise_bkgr_ap, expected_noise_bkgr_mf,
                            tot_tint])
     
     end_time = time.time()
     return return_arr
 
 
-parallel = False
+parallel = True
 
 # sequential runs
 if parallel == False:
@@ -261,7 +315,7 @@ elif parallel == True:
     
     results = Parallel(n_jobs=40)(delayed(process)(config) for config in configs)
     
-    header = "filter_sz_pix incl zodis median_SNR_after_hipass measured_noise_after_hipass expected_noise tot_tint"
+    header = "filter_sz_pix incl zodis med_SNR_HPAP med_SNR_HPMF med_meas_noise_HPAP med_meas_noise_HPMF expected_noise_ap expected_noise_mf expected_noise_bkgr_ap expected_noise_bkgr_mf tot_tint"
     save_fl = "SNR_vs_tot_tint_{}_{}".format(tele, DI)
     save_fl += "_{}".format(mode)
     save_fl += ".dat"
