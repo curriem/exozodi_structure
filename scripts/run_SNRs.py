@@ -22,7 +22,7 @@ try:
 except IndexError:
     
     tele = "LUVB"
-    DI = "RDI"
+    DI = "ADI"
     noise_region = None
     planloc = "planin"
     print("WARNING: NO TELE, DI, NOISE REGION SPECIFIED. USING {}, {}, {}.".format(tele, DI, noise_region))
@@ -160,6 +160,7 @@ def process(config):
                                                                                                    planet_noise=planet_noise, 
                                                                                                    uniform_disk=uniform_disk,
                                                                                                    background="region",
+                                                                                                   #background="planetloc",
                                                                                                    simple_planet=False,
                                                                                                    matched_filter_datacube_single=matched_filter_datacube_single)
             sci_out_i, sci_out_j, ref_out_i, ref_out_j = outside_loc
@@ -179,6 +180,7 @@ def process(config):
                                                                                                    uniform_disk=uniform_disk,
                                                                                                    zerodisk=False,
                                                                                                    background="region",
+                                                                                                   #background="planetloc",
                                                                                                    matched_filter_datacube_single=matched_filter_datacube_single)
             sci_out_i, sci_out_j = outside_loc
             
@@ -276,7 +278,7 @@ def process(config):
 
     
     
-    verbose = False
+    verbose = True
     if verbose:
         print("Median SNR HPMF:", med_SNR_HPMF)
         print("Median SNR HPAP:", med_SNR_HPAP)
@@ -345,7 +347,7 @@ def process(config):
     return return_arr
 
 
-parallel = True
+parallel = False
 
 # sequential runs
 if parallel == False:

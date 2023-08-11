@@ -533,6 +533,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
     sci_sig_CR = sci_plan_im * sci_aperture_mask
     ref_sig_CR = ref_plan_im * ref_aperture_mask
     
+    
     signal_apertures = np.sum(sci_sig_CR) + np.sum(ref_sig_CR)
     
     
@@ -575,7 +576,8 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         mf_noises_sci = np.array(mf_noises_sci)
         mf_noises_ref = np.array(mf_noises_ref)
         #noise_background = np.median(mf_noises_sci) + np.median(mf_noises_ref)
-        noise_background_mf = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
+        #noise_background_mf = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
+        noise_background_mf = noise_background_ap
         
  
 
@@ -592,7 +594,9 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
         sci_bkgr_CR = sci_disk_CR + sci_star_CR
         ref_bkgr_CR = ref_disk_CR + ref_star_CR
         
-        noise_background = sci_bkgr_CR + ref_bkgr_CR
+        noise_background_mf = sci_bkgr_CR + ref_bkgr_CR
+        noise_background_ap = sci_bkgr_CR + ref_bkgr_CR
+
         
     else:
         assert False, "Please specify method for background calculation"
@@ -709,7 +713,7 @@ def synthesize_images_ADI3(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_
 
 def get_CR(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, incl, zodis, aperture, roll_angle,
                           target_SNR=7, tot_tint=None, pix_radius=1, verbose=False, planet_noise=True, 
-                          add_noise=True, add_star=True, uniform_disk=False, simple_planet=False):
+                          add_noise=True, add_star=True, uniform_disk=False, simple_planet=False, background=None):
     """
     function to synthesize images for ADI
 
@@ -846,54 +850,64 @@ def get_CR(im_dir, sci_plan_i, sci_plan_j, ref_plan_i, ref_plan_j, incl, zodis, 
     
     
     
-# =============================================================================
-#     sci_sig_CR = sub_im_total * sci_aperture_mask
-#     ref_sig_CR = sub_im_total * ref_aperture_mask
-#     
-#     signal_apertures = np.sum(sci_sig_CR) + -1*np.sum(ref_sig_CR)
-# =============================================================================
-    
     sci_sig_CR = sci_plan_im * sci_aperture_mask
     ref_sig_CR = ref_plan_im * ref_aperture_mask
     
     signal_apertures = np.sum(sci_sig_CR) + np.sum(ref_sig_CR)
     
     
-    
-    sci_signal_i_opp, sci_signal_j_opp  = get_opp_coords(sci_plan_i, sci_plan_j, (101-1)/2)
-    ref_signal_i_opp, ref_signal_j_opp  = get_opp_coords(ref_plan_i, ref_plan_j, (101-1)/2)
-    
-    
-    height=3
-    width=3
-    
-    ## define noise region
-    nr_dynasquare_sci = region_dynasquare(sci_im_total, sci_signal_i_opp, sci_signal_j_opp, aperture, pix_radius, width, height, opposite=True)
-    nr_dynasquare_ref = rotate_region(nr_dynasquare_sci, ref_im_total, sci_signal_i_opp, sci_signal_j_opp, ref_signal_i_opp, ref_signal_j_opp, aperture, pix_radius, roll_angle, opposite=True)
-    
-
-    ## measure noise
-    counts_per_ap_nr_dynasquare_sci, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
-    counts_per_ap_nr_dynasquare_ref, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
+    if background == "region":
+        inner_r = 2
+        outer_r = 6
+        
+        ## define noise region
+        nr_dynasquare_sci = region(sci_im_total, sci_plan_i, sci_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+        nr_dynasquare_ref = region(ref_im_total, ref_plan_i, ref_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
     
         
-    tot_sci_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_sci# - np.median(counts_per_ap_nr_dynasquare_sci)
-    tot_ref_ap_counts_dynasquare = counts_per_ap_nr_dynasquare_ref# - np.median(counts_per_ap_nr_dynasquare_ref)    
+        ## measure noise
+        counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
+        counts_per_ap_nr_dynasquare_ref_photometry, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
+        
+        
+        # get aperture photometry noise
+        noise_background = np.mean(counts_per_ap_nr_dynasquare_sci_photometry) + np.mean(counts_per_ap_nr_dynasquare_ref_photometry)
+        
+        
+        ## define noise region
+        nr_dynasquare_sci = region(sci_disk_im, sci_plan_i, sci_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+        nr_dynasquare_ref = region(ref_disk_im, ref_plan_i, ref_plan_j, aperture, pix_radius, inner_r, outer_r, opposite=False)
+    
+        
+        ## measure noise
+        counts_per_ap_nr_dynasquare_sci_photometry, ap_coords_nr_dynasquare_sci = sum_apertures_in_region(nr_dynasquare_sci, aperture, pix_radius)
+        counts_per_ap_nr_dynasquare_ref_photometry, ap_coords_nr_dynasquare_ref = sum_apertures_in_region(nr_dynasquare_ref, aperture, pix_radius)
+        
+        noise_disk = np.mean(counts_per_ap_nr_dynasquare_sci_photometry) + np.mean(counts_per_ap_nr_dynasquare_ref_photometry)
+        
+        
+        
+    elif background == "planetloc":
+        
+        sci_star_CR = np.sum(sci_star_im * sci_aperture_mask)
+        ref_star_CR = np.sum(ref_star_im * ref_aperture_mask)
+        
+        sci_disk_CR = np.sum(sci_disk_im*sci_aperture_mask)
+        ref_disk_CR = np.sum(ref_disk_im*ref_aperture_mask)
+        
+        sci_bkgr_CR = sci_disk_CR + sci_star_CR
+        ref_bkgr_CR = ref_disk_CR + ref_star_CR
+        
+        noise_background = sci_bkgr_CR + ref_bkgr_CR
+        noise_disk = sci_disk_CR + ref_disk_CR
 
     
-
-
-    #signal_ttest, noise_ttest = calc_SNR_ttest(signal_apertures, noise_apertures)
-
-    noise_background = np.mean(tot_sci_ap_counts_dynasquare) + np.mean(tot_ref_ap_counts_dynasquare)
-    assert False, "Fis this to reflect region changes in ADI3"
-    
-    total_signal_CR = signal_apertures  #- noise_ttest#np.mean(noise_apertures)
+    total_signal_CR = signal_apertures  
     if uniform_disk is False and incl == 0 and (zodis < 10):
         total_signal_CR  = total_signal_CR + np.sum(sub_disk_im*sci_aperture_mask) + -1*np.sum(sub_disk_im*ref_aperture_mask)
     total_noise_CR = noise_background + total_signal_CR
     
-    return total_signal_CR, total_noise_CR
+    return total_signal_CR, total_noise_CR, noise_disk
     
 
 
@@ -1058,7 +1072,8 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         mf_noises_sci = np.array(mf_noises_sci)
         mf_noises_ref = np.array(mf_noises_ref)
         
-        noise_background_mf = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
+        #noise_background_mf = np.nanmean(mf_noises_sci) + np.nanmean(mf_noises_ref)
+        noise_background_mf = noise_background_ap
     
     elif background == "planetloc":
 
@@ -1070,7 +1085,9 @@ def synthesize_images_RDI3(im_dir, sci_plan_i, sci_plan_j, zodis, aperture,
         sci_bkgr_CR = sci_disk_CR + sci_star_CR
         ref_bkgr_CR = ref_star_CR
         
-        noise_background = sci_bkgr_CR + ref_bkgr_CR
+        noise_background_mf = sci_bkgr_CR + ref_bkgr_CR
+        noise_background_ap = sci_bkgr_CR + ref_bkgr_CR
+
     else:
         assert False, "Please specify background method to use"
     
@@ -2067,10 +2084,13 @@ def calc_SNR_HPAP_RDI(im_hipass,
     
     return SNR_HPAP, ap_signal, ap_noise, ap_background
 
-def get_optimal_filtersize(temp_bool, df):
-    
-    noise_meas_expt_arr = df[temp_bool]["measured_noise_after_hipass"].values / df[temp_bool]["expected_noise_bkgr"].values
-    
+def get_optimal_filtersize(temp_bool, df, mode=None):
+    if mode == "HPAP":
+        noise_meas_expt_arr = df[temp_bool]["med_meas_noise_HPAP"].values / df[temp_bool]["expected_noise_bkgr_ap"].values
+    elif mode == "HPMF":
+        noise_meas_expt_arr = df[temp_bool]["med_meas_noise_HPMF"].values / df[temp_bool]["expected_noise_bkgr_mf"].values
+    else:
+        assert False, "Check mode, must be HPAP or HPMF"
     # limit to filter size less than 20 pixels
     filter_size_arr_temp = np.copy(df[temp_bool]["filter_sz_pix"].values)
     inds_gt_one = (np.abs(noise_meas_expt_arr) > 0.95) & (filter_size_arr_temp > 1.)
